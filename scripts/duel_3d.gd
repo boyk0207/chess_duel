@@ -92,6 +92,9 @@ var lan_target_positions: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 var lan_target_velocities: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 var lan_has_snapshot := false
 var lan_snapshot_age := 0.0
+var lan_state_samples := 0
+var lan_state_rate := 0
+var lan_stats_clock := 0.0
 var collapse_shake := 0.0
 var dodge_cd := 0.0
 var dodge_time := 0.0
@@ -319,6 +322,7 @@ func lan_apply_state(state: Dictionary) -> void:
 			get_node("/root/Sound").play_spatial("body_hit", bodies[i].global_position + Vector3.UP, self, kinds[i])
 	lan_has_snapshot = true
 	lan_snapshot_age = 0.0
+	lan_state_samples += 1
 	elapsed = float(state.get("e", elapsed))
 	var was_over := over
 	over = bool(state.get("over", false))
@@ -473,6 +477,11 @@ func _lan_reconcile(dt: float) -> void:
 func _lan_guest_tick(dt: float) -> void:
 	get_node("/root/Sound").set_battle_intensity(clampf((1.0 - minf(hp[0] / float(stats[0]["hp"]), hp[1] / float(stats[1]["hp"]))) * 0.75 + elapsed / 120.0, 0.0, 1.0))
 	_lan_guest_motion(dt)
+	lan_stats_clock += dt
+	if lan_stats_clock >= 1.0:
+		lan_state_rate = roundi(lan_state_samples / lan_stats_clock)
+		lan_state_samples = 0
+		lan_stats_clock = 0.0
 	update_shard_icons(dt)
 	lan_input_clock += dt
 	if lan_input_clock >= 0.025 and not over:
@@ -497,7 +506,7 @@ func _lan_guest_tick(dt: float) -> void:
 	else: update_camera()
 	status.text = ("VICTORY" if end_winner == 1 else "DEFEAT") if over else "LAN PvP | %s Attack | %s Block | %s Special: %s" % [Controls.display_name("arena_attack"), Controls.display_name("arena_block"), Controls.display_name("arena_special"), "READY" if special[1] <= 0.0 else "%.1fs" % special[1]]
 	var phase := "SUDDEN DEATH" if elapsed >= 45.0 else ("SKY STORM" if elapsed >= 35.0 else ("COLLAPSE" if elapsed >= 15.0 else "FIGHT"))
-	arena_label.text = "%ds | %s | Power %.1fs | Speed %.1fs | Push %.1fs" % [int(elapsed), phase, boost[1], speed_boost[1], push_boost[1]]
+	arena_label.text = "%ds | %s | Power %.1fs | Speed %.1fs | Push %.1fs\nFPS %d | States %d/s | Last %d ms" % [int(elapsed), phase, boost[1], speed_boost[1], push_boost[1], Engine.get_frames_per_second(), lan_state_rate, roundi(lan_snapshot_age * 1000.0)]
 func block(size: Vector3, pos: Vector3, color: Color, solid: bool = true) -> StaticBody3D:
 	var root := StaticBody3D.new()
 	add_child(root)
