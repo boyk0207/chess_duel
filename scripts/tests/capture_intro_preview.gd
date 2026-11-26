@@ -44,7 +44,8 @@ func _replay() -> void:
 	intro = IntroScene.instantiate()
 	board.get_node("Pieces").add_child(intro)
 	intro.call("configure", a, true, d, false, Vector3(-0.8, 0, 0.8), Vector3(0.8, 0, -0.8), 1.0, Vector3.FORWARD, Color.SKY_BLUE)
-	info.text = "%s vs %s  (%d / 49)\nA/D: attacker  J/L: defender  Space: replay" % [Data.NAMES[a], Data.NAMES[d], attacker_index * 7 + defender_index + 1]
+	var plan: Dictionary = intro.plan
+	info.text = "%s vs %s  (%d / 49)\n%s → %s | %s / %s to arena\nA/D: attacker  J/L: defender  Space: replay" % [Data.NAMES[a], Data.NAMES[d], attacker_index * 7 + defender_index + 1, plan["strike"], plan["reaction"], plan["exit_attacker"]["style"], plan["exit_defender"]["style"]]
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo: return
