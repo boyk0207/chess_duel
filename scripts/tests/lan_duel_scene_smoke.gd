@@ -123,13 +123,23 @@ func run_checks() -> void:
 	host3d.projectiles.clear()
 	guest3d.lan_apply_state(host3d._lan_snapshot())
 	check(not is_instance_valid(guest3d.lan_projectile_meshes[0]) or guest3d.lan_projectile_meshes[0].is_queued_for_deletion(), "3D Join removes expired projectile")
+	host3d.hp[1] = 5.0
+	host3d.guarding[1] = false
+	host3d.lan_dodge_time = 0.0
+	host3d.damage(0, 1.0)
+	guest3d.lan_apply_state(host3d._lan_snapshot())
+	check(is_equal_approx(guest3d.hp[1], host3d.hp[1]) and guest3d.hp[1] > 0.0 and guest3d.lan_fx_seen == host3d.lan_fx_sequence, "low HP damage and effects reach Join without ending duel")
+	host3d.hp[1] = float(host3d.stats[1]["hp"])
 	host3d.over = true
 	host3d.end_winner = 1
 	host3d.hp[0] = 0.0
 	guest3d.lan_apply_state(host3d._lan_snapshot())
-	check(guest3d.over and not guest3d.cross.visible and guest3d.end_winner == 1, "3D Join sees Black victory state")
+	check(guest3d.over and not guest3d.cross.visible and guest3d.end_winner == 1 and guest3d.result_banner.visible and guest3d.result_banner.text == "VICTORY", "3D Join sees its Victory banner")
 	guest3d._lan_guest_tick(0.25)
-	check(guest3d.end_clock > 0.0 and not guest3d.shields[0].visible and not guest3d.shields[1].visible, "3D Join advances victory camera and hides combat shields")
+	check(guest3d.end_clock > 0.0 and not guest3d.paused_rigs and guest3d.rig_players[1].speed_scale > 0.0 and not guest3d.shields[0].visible and not guest3d.shields[1].visible, "3D Join resumes Victory animation, advances camera and hides shields")
+	guest3d.over = false
+	guest3d.lan_show_result(true)
+	check(guest3d.result_banner.text == "DEFEAT" and guest3d.lan_result_remaining() > 2.0 and guest3d.hp[1] == 0.0, "3D Join can display Defeat if result arrives before final snapshot")
 	host3d.over = false
 	host3d.hp[0] = float(host3d.stats[0]["hp"])
 	for j in range(24): host3d._lan_fx("ring", [[float(j) * 0.1, 1.0, 0.0], "ffffffff", 2.0, 0.28, true])
@@ -199,7 +209,10 @@ func run_checks() -> void:
 	host2d.over = true
 	host2d.fighters[0].hp = 0.0
 	guest2d.lan_apply_state(host2d._lan_snapshot())
-	check(guest2d.over and guest2d.banner.visible and guest2d.banner.text.contains("wins"), "2.5D Join sees Black victory banner")
+	check(guest2d.over and guest2d.banner.visible and guest2d.banner.text.contains("VICTORY"), "2.5D Join sees Black Victory banner")
+	guest2d.over = false
+	guest2d.lan_show_result(true)
+	check(guest2d.banner.text.contains("DEFEAT") and guest2d.lan_result_remaining() > 1.5 and guest2d.fighters[1].hp == 0.0, "2.5D Join can display Defeat if result arrives before final snapshot")
 	host2d.queue_free()
 	guest2d.queue_free()
 	await process_frame

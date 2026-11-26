@@ -86,6 +86,7 @@ var projs: Array = []
 var cam: Camera3D
 var banner: Label
 var over := false
+var result_clock := 0.0
 var clock := 0.0
 var hitstop := 0.0
 var shake := 0.0
@@ -160,8 +161,9 @@ func lan_apply_state(state: Dictionary) -> void:
 	var was_over := over
 	over = bool(state.get("over", false))
 	if over and not was_over:
+		result_clock = 0.0
 		var winner: Fighter = fighters[1] if fighters[0].hp <= 0.0 else fighters[0]
-		banner.text = "K.O.!   %s wins" % Data.NAMES[winner.kind]
+		banner.text = "%s — %s wins" % ["VICTORY" if not winner.is_white else "DEFEAT", Data.NAMES[winner.kind]]
 		banner.show()
 		Sound.play_flat("victory" if not winner.is_white else "defeat")
 	var shots: Array = state.get("p", [])
@@ -413,6 +415,7 @@ func _process(delta: float) -> void:
 	if fighters.size() < 2:
 		return
 	if lan_role == 2:
+		if over: result_clock += delta
 		var input := {"dir": int(Controls.is_pressed("p2_right")) - int(Controls.is_pressed("p2_left")), "block": Controls.is_pressed("p2_block"), "attack": Controls.is_pressed("p2_attack"), "special": Controls.is_pressed("p2_special"), "jump": Controls.is_pressed("p2_jump")}
 		lan_input_ready.emit(input)
 		Sound.set_battle_intensity(clampf(1.0 - minf(fighters[0].hp / fighters[0].max_hp, fighters[1].hp / fighters[1].max_hp), 0.0, 1.0))
@@ -813,10 +816,25 @@ func _ko(loser: Fighter) -> void:
 	var left_won := not loser.is_white
 	Sound.play_flat("victory" if left_won else "defeat")
 	var winner: Fighter = _foe_of(loser)
-	banner.text = "K.O.!   %s wins" % Data.NAMES[winner.kind]
+	banner.text = "%s — %s wins" % ["VICTORY" if left_won else "DEFEAT", Data.NAMES[winner.kind]]
 	banner.visible = true
 	await get_tree().create_timer(1.8).timeout
-	finished.emit(left_won)
+	if is_inside_tree(): finished.emit(left_won)
+
+func lan_show_result(white_won: bool) -> void:
+	if lan_role != 2 or fighters.size() != 2: return
+	if over: return
+	over = true
+	result_clock = 0.0
+	var winner: Fighter = fighters[0] if white_won else fighters[1]
+	var loser: Fighter = fighters[1] if white_won else fighters[0]
+	loser.hp = 0.0
+	banner.text = "%s — %s wins" % ["DEFEAT" if white_won else "VICTORY", Data.NAMES[winner.kind]]
+	banner.show()
+	Sound.play_flat("defeat" if white_won else "victory")
+
+func lan_result_remaining() -> float:
+	return maxf(0.0, 1.8 - result_clock)
 
 # ---------------------------------------------------------------- visuals
 func _ease_out(u: float) -> float:

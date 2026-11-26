@@ -127,6 +127,10 @@ func run_checks() -> void:
 			game.active_lan_duel.hp[1] = 0.0
 		else:
 			game.active_lan_duel._ko(game.active_lan_duel.fighters[1])
+	if role == "guest":
+		check(await wait_for(func():
+			if game.mode != "duel" or not is_instance_valid(game.active_lan_duel): return false
+			return game.active_lan_duel.result_banner.visible and game.active_lan_duel.result_banner.text == "DEFEAT" if stage == 0 else game.active_lan_duel.banner.visible and game.active_lan_duel.banner.text.contains("DEFEAT"), 100), "Join displays Defeat before returning to board")
 	check(await wait_for(func(): return game.mode == "board" and game.board.has(Vector2i(3, 4)) and not game.board.has(Vector2i(4, 3)) and not game.white_turn, 240), "same attacker victory updates board")
 	check(game.chess_rules.pieces.has(Vector2i(3, 4)) and not game.chess_rules.pieces.has(Vector2i(4, 3)), "rule board also agrees")
 	game.chess_rules.set_fen("4k3/8/8/8/8/8/p7/4K3 b - - 0 1")

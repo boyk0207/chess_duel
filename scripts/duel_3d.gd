@@ -41,6 +41,7 @@ var yaw := 0.0
 var pitch := -0.22
 var over := false
 var status: Label
+var result_banner: Label
 var pads: Array[Vector3] = [Vector3(-6,0,0), Vector3(6,0,0)]
 var ai_jump := 0.0
 var elapsed := 0.0
@@ -250,6 +251,20 @@ func setup(w: String, b: String, _ai: bool, stage: Dictionary) -> void:
 	status = Label.new()
 	status.text = "Move %s/%s/%s/%s | Jump %s | Sprint %s | Dodge %s | Attack %s | Block %s | Special %s | Esc mouse" % [Controls.display_name("arena_forward"), Controls.display_name("arena_left"), Controls.display_name("arena_back"), Controls.display_name("arena_right"), Controls.display_name("arena_jump"), Controls.display_name("arena_sprint"), Controls.display_name("arena_dodge"), Controls.display_name("arena_attack"), Controls.display_name("arena_block"), Controls.display_name("arena_special")]
 	panel.add_child(status)
+	result_banner = Label.new()
+	result_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	result_banner.offset_left = -420
+	result_banner.offset_right = 420
+	result_banner.offset_top = -110
+	result_banner.offset_bottom = 10
+	result_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	result_banner.add_theme_font_size_override("font_size", 72)
+	result_banner.add_theme_color_override("font_outline_color", Color(0.05, 0.07, 0.12, 0.95))
+	result_banner.add_theme_constant_override("outline_size", 12)
+	result_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	result_banner.hide()
+	hud.add_child(result_banner)
 	arena_label = Label.new()
 	panel.add_child(arena_label)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -381,6 +396,7 @@ func lan_apply_state(state: Dictionary) -> void:
 	end_winner = int(state.get("winner", -1))
 	if over and not was_over:
 		begin_victory_camera()
+		_show_result_banner()
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		cross.hide()
 		get_node("/root/Sound").play_flat("victory" if end_winner == 1 else "defeat")
@@ -548,6 +564,9 @@ func _lan_reconcile(dt: float) -> void:
 		if i == 0: body.velocity = lan_target_velocities[i]
 
 func _lan_guest_tick(dt: float) -> void:
+	if hitstop_remaining > 0.0:
+		hitstop_remaining = maxf(0.0, hitstop_remaining - dt)
+		if hitstop_remaining <= 0.0: _set_rig_pause(false)
 	get_node("/root/Sound").set_battle_intensity(clampf((1.0 - minf(hp[0] / float(stats[0]["hp"]), hp[1] / float(stats[1]["hp"]))) * 0.75 + elapsed / 120.0, 0.0, 1.0))
 	polish.tick(dt)
 	shake = maxf(0.0, shake - dt)
@@ -889,6 +908,7 @@ func _physics_process(dt: float) -> void:
 			if i == end_winner:
 				burst(bodies[i].position + Vector3.UP, FX_COLORS[kinds[i]], 12, 1.1)
 		status.text = "VICTORY" if end_winner == 0 else ("DEFEAT" if end_winner == 1 else "DOUBLE K.O.")
+		_show_result_banner()
 		cross.hide()
 		attack_queued = false
 		special_queued = false
@@ -2014,6 +2034,29 @@ func begin_victory_camera() -> void:
 		rig_states[i] = ""
 		bodies[i].velocity = Vector3.ZERO
 	if not last_damage_was_finisher: request_hitstop(0.045)
+
+func _show_result_banner() -> void:
+	var local_index := 1 if lan_role == 2 else 0
+	result_banner.text = "DOUBLE K.O." if end_winner < 0 else ("VICTORY" if end_winner == local_index else "DEFEAT")
+	result_banner.add_theme_color_override("font_color", Color.GOLD if end_winner == local_index else (Color("e7edf5") if end_winner < 0 else Color("ff7974")))
+	result_banner.show()
+
+func lan_show_result(white_won: bool) -> void:
+	if lan_role != 2: return
+	if over:
+		_show_result_banner()
+		return
+	over = true
+	end_winner = 0 if white_won else 1
+	hp[1 - end_winner] = 0.0
+	begin_victory_camera()
+	_show_result_banner()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	cross.hide()
+	get_node("/root/Sound").play_flat("victory" if end_winner == 1 else "defeat")
+
+func lan_result_remaining() -> float:
+	return maxf(0.0, 2.4 - end_clock)
 
 func update_victory_camera(dt: float) -> void:
 	var focus := end_winner if end_winner >= 0 else 0

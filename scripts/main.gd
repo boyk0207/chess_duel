@@ -56,6 +56,7 @@ var lan_move_queue: Array[Dictionary] = []
 var lan_last_seq := 0
 var lan_notice := ""
 var active_lan_duel: Node
+var lan_result_pending := false
 var lan_promotion_picker: CanvasLayer
 var focus := Vector3.ZERO
 var focus_target := Vector3.ZERO
@@ -635,13 +636,20 @@ func _on_lan_duel_input(input: Dictionary) -> void:
 		active_lan_duel.lan_receive_input(input)
 
 func _on_lan_duel_state(state: Dictionary) -> void:
-	if ChessNetwork.player_id == 2 and is_instance_valid(active_lan_duel):
+	if ChessNetwork.player_id == 2 and not lan_result_pending and is_instance_valid(active_lan_duel) and not active_lan_duel.is_queued_for_deletion():
 		active_lan_duel.lan_apply_state(state)
 
 func _on_lan_duel_result(_seq: int, white_won: bool) -> void:
-	if not online_match or not is_instance_valid(active_lan_duel): return
+	if not online_match or lan_result_pending or not is_instance_valid(active_lan_duel) or active_lan_duel.is_queued_for_deletion(): return
+	lan_result_pending = true
 	var duel := active_lan_duel
+	if ChessNetwork.player_id == 2:
+		duel.lan_show_result(white_won)
+		var remaining: float = duel.lan_result_remaining()
+		if remaining > 0.0: await get_tree().create_timer(remaining).timeout
+		if not is_inside_tree() or not online_match or active_lan_duel != duel or mode != "duel": return
 	active_lan_duel = null
+	lan_result_pending = false
 	_resolve_duel_finished(white_won, duel)
 
 func _on_lan_promotion_selected(kind: String) -> void:
@@ -661,6 +669,7 @@ func _on_lan_error(message: String) -> void:
 
 func _abort_lan_match(message: String) -> void:
 	if not online_match: return
+	lan_result_pending = false
 	_clear_capture_intro()
 	if is_instance_valid(active_lan_duel): active_lan_duel.queue_free()
 	if is_instance_valid(lan_promotion_picker): lan_promotion_picker.queue_free()
@@ -735,6 +744,7 @@ func _focus_on(sqr: Vector2i) -> void:
 # ---------------------------------------------------------------- board
 func _new_game() -> void:
 	_clear_capture_intro()
+	lan_result_pending = false
 	chess_rules.reset()
 	for k in board.keys():
 		board[k].node.queue_free()
@@ -1030,6 +1040,7 @@ func _start_duel(from: Vector2i, to: Vector2i) -> void:
 	if online_match:
 		dn.lan_role = ChessNetwork.player_id
 		active_lan_duel = dn
+		lan_result_pending = false
 		dn.lan_input_ready.connect(ChessNetwork.send_duel_input)
 		dn.lan_state_ready.connect(ChessNetwork.send_duel_state)
 	if use_3d:
