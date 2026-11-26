@@ -1,0 +1,5 @@
+Floating Island V4 - visual-only island roles and shard pickup indicators
+
+Removed in-world role labels, wind/altar/crystal labels, and HUD island name. Combat HUD, cooldowns and generic danger warnings remain. Crystal altar has gold diamond inlay; heal cross dims while on cooldown, and brightens when ready. Five hand-drawn transparent PNG pictograms match shard colors and appear both on collectible and above the collector (player or AI). Popup follows body, rises slightly, fades during final 0.5 seconds and hides after 2.0 seconds; a new pickup refreshes the icon. Heal island also uses heal icon. No change to combat stats, pickup effects or spawn timing.
+
+TEST: F5 -> Human vs AI -> Floating Island -> duel. At 10s a shard appears, check no floating words. Walk into shard; icon above player should appear and fade after 2s. Let AI collect to check enemy icon. Heal island cross should dim for 8s after use. Check map warnings, aerial attacks and falling islands. scenes/tests/rig_preview.tscn / scenes/tests/animation_lab.tscn remain separately runnable via F6. Runtime not tested in build environment.

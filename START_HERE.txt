@@ -1,0 +1,27 @@
+CHESS DUEL — COMBAT POLISH / ORGANIZED PROJECT
+
+1. Import project.godot in Godot. F5 runs only the main game.
+2. To test animations: open scenes/tests/rig_preview.tscn and press F6.
+3. To test combat: open scenes/tests/animation_lab.tscn and press F6.
+   Choose both fighters, START PRACTICE. F2 returns to fighter selection.
+4. scenes/board_visual.tscn is the editable board.
+
+Folders:
+  scenes/         Main game and board scenes (.tscn)
+  scenes/tests/   Standalone test scenes (.tscn)
+  scripts/        Game code (.gd), including network/ and tests/
+  shaders/        Game shaders (.gdshader)
+  docs/           Update notes and validation reports (.txt)
+  assets/         Models and textures (unchanged)
+  addons/         Third-party VFX (unchanged)
+  tools/          Python asset utilities (unchanged)
+
+Combat testing: docs/COMBAT_POLISH.txt
+Optional Godot smoke test, after import:
+  godot --headless --path . --script res://scripts/tests/combat_smoke.gd
+
+This update reorganizes files and rewrites resource paths only.
+No Godot runtime testing performed in this environment.
+
+PHASE 3 SOUND FIX:
+See docs/SOUND_FIX.txt for changes and validation commands. F5 = main game; F6 = scenes/tests/sound_test.tscn for sound testing. Use RESET AUDIO if your existing saved mixer is muted.

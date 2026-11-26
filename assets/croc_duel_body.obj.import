@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://xslm7qamihbo"
+path="res://.godot/imported/croc_duel_body.obj-1b39ee24a7cdc84cee7f88407a8c37d7.mesh"
+
+[deps]
+
+files=["res://.godot/imported/croc_duel_body.obj-1b39ee24a7cdc84cee7f88407a8c37d7.mesh"]
+
+source_file="res://assets/croc_duel_body.obj"
+dest_files=["res://.godot/imported/croc_duel_body.obj-1b39ee24a7cdc84cee7f88407a8c37d7.mesh", "res://.godot/imported/croc_duel_body.obj-1b39ee24a7cdc84cee7f88407a8c37d7.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

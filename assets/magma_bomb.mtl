@@ -1,0 +1,24 @@
+newmtl stone
+Kd 0.1882 0.1765 0.2157
+Ke 0 0 0
+
+newmtl stone2
+Kd 0.2627 0.2431 0.2863
+Ke 0 0 0
+
+newmtl stone3
+Kd 0.1373 0.1333 0.1686
+Ke 0 0 0
+
+newmtl lava
+Kd 1.0000 0.2667 0.0196
+Ke 1 .3 .01
+
+newmtl hot
+Kd 1.0000 0.7451 0.0471
+Ke 1 .7 .04
+
+newmtl fuse
+Kd 0.4314 0.2549 0.1176
+Ke 0 0 0
+

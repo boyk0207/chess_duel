@@ -1,0 +1,20 @@
+FLOATING ISLAND V3 — ISLAND ROLES / WIND VORTEX / AERIAL AIM
+Base: chessduel_floating_island_v2.zip. Main scene, assets, 98 skeletal clips, fighter stats, existing VFX, bridge/collapse/storm/ferry and test scenes preserved.
+
+Island roles (existing collapse times unchanged):
+* East: Crystal Island (gold altar), initial random crystal spawns there at 10s. New spawns after the east warning at 15s use the center arena. If an east crystal is still active at 20s it relocates to the center (unless already replaced by the next 8s cycle).
+* West: Ruins Island (gray), three collision-backed destructible ruins; central access remains clear.
+* North: Wind Island (cyan), dedicated radius 1.9m, height 9m updraft, plus the existing gap updrafts. Gap updrafts are 1.45m radius, 7.5m height. Three rotating spiral ribbons, rising arrow markers, base ring. Lift speed capped at 11m/s; retains WASD and attacks while airborne. Lift ends above vortex or on island collapse.
+* South: Heal Island (green cross): both fighters can heal 10% max HP by entering its center while injured; shared 8s recharge; no heal after collapse begins at 32s. HUD labels show island identity, recharge and aerial aiming angle.
+
+Camera: mouse downward pitch limit 80 degrees (formerly ~46); upward unchanged ~20 degrees. Shoulder offset smoothly increases at steep pitch to keep own model out of reticle. Ray range 60m is only for aiming; projectile ranges are unchanged. Queen downward aerial Smite has 24m cast range (normally 10m), cast ray respects collision. Knight charge stays horizontal. Other ranged specials use existing 3D aim direction and mechanics.
+
+TEST (Godot): F5 main game only. Human vs AI / Floating Island. F6 scenes/tests/animation_lab.tscn for quick duels; scenes/tests/rig_preview.tscn remains separate.
+1. Inspect all four roles; check labels, floor, cover collision and bridge geometry.
+2. East crystal at 10s, walk through for bonus, compare center spawns after warning.
+3. West attack a cover with LMB/Q; it should break using prior V2 destruction logic.
+4. North or a gap: walk/jump into spiral, observe rising arrows and lift. Move mouse downward until AIR AIM 80 degrees; test P/B/R/K/W specials on AI below. Test Queen Smite from height. Knight charge stays horizontal.
+5. South: take damage, step on green cross; verify 10% HP and shared 8s cooldown. Both fighters eligible.
+6. Watch the previous 5s warning, bridges break, islands fall, storm, and AI retreat. Check no invalid-instance errors when the north or south island is freed.
+
+Offline validation only: ZIP integrity, original file hashes, resource references and existing rig binary validation. No Godot executable is available here, so import, GDScript runtime, collision, visuals, gameplay balance and FPS must still be tested in Godot.

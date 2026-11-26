@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/pyrolux_fx/nodes_3d/pyrolux_fireball_3d.gd" id="1"]
+
+[node name="FireballBig" type="Node3D"]
+script = ExtResource("1")
+ball_radius = 0.62
+speed = 11.0
+tongues = 18
+tongue_length = 2.2
+trail_length = 11.0
+trail_smoke = 46
+trail_sparks = 28
+impact_flames = 30
+impact_sparks = 40
+scorch_time = 9.0
+light_energy = 7.0
+light_range = 11.0

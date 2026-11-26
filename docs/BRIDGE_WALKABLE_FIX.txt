@@ -1,0 +1,7 @@
+Floating Island V4.1 — walkable bridge fix
+- Original segmented model kept as source. New Bridge_Walkable.glb levels the 17 deck planks, retains their original textures, UVs, and the separated rope/post meshes.
+- Deck top and all island/edge floor collision surfaces start at Y=0. Planks overlap the island approach by about 0.15 m and adjacent collisions overlap by about 0.02 m.
+- Collider thickness extends downward, never above the deck. Bridge warning shakes sideways without lifting the floor. Islands retain original shake/tilt/drop behavior; an island in active collapse may still be unsafe to cross.
+- Individual plank/rope destruction remains in place; no continuous invisible collision over damaged areas.
+- Test: F5 main game or F6 animation_lab.tscn. Before 15 seconds, walk across each of the four bridges in both directions without jumping, then repeat with sprint and AI. Break a bridge with a special, confirm the gap remains real. Check collapse warnings and falls.
+- Static GLB geometry and ZIP checks only; Godot runtime not available in build environment.

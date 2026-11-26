@@ -1,0 +1,66 @@
+[
+  {
+    "file": "B.glb",
+    "bones": 7,
+    "clips": 14,
+    "mesh_parts": 2,
+    "triangles": 586,
+    "sampled_frames": 238,
+    "max_vertex_displacement": 1.461
+  },
+  {
+    "file": "K.glb",
+    "bones": 6,
+    "clips": 14,
+    "mesh_parts": 2,
+    "triangles": 2812,
+    "sampled_frames": 238,
+    "max_vertex_displacement": 1.4434
+  },
+  {
+    "file": "N.glb",
+    "bones": 9,
+    "clips": 14,
+    "mesh_parts": 1,
+    "triangles": 1556,
+    "sampled_frames": 238,
+    "max_vertex_displacement": 1.3783
+  },
+  {
+    "file": "P.glb",
+    "bones": 10,
+    "clips": 14,
+    "mesh_parts": 2,
+    "triangles": 962,
+    "sampled_frames": 238,
+    "max_vertex_displacement": 1.6432
+  },
+  {
+    "file": "Q.glb",
+    "bones": 6,
+    "clips": 14,
+    "mesh_parts": 2,
+    "triangles": 2166,
+    "sampled_frames": 238,
+    "max_vertex_displacement": 1.5138
+  },
+  {
+    "file": "R.glb",
+    "bones": 8,
+    "clips": 14,
+    "mesh_parts": 1,
+    "triangles": 1172,
+    "sampled_frames": 238,
+    "max_vertex_displacement": 1.4848
+  },
+  {
+    "file": "W.glb",
+    "bones": 11,
+    "clips": 14,
+    "mesh_parts": 3,
+    "triangles": 774,
+    "sampled_frames": 238,
+    "max_vertex_displacement": 1.5815
+  }
+]
+PASS: seven GLBs; 98 clips; 1666 sampled poses; bind matrices, skin weights, accessors, quaternions and vertex transforms validated.

@@ -1,0 +1,11 @@
+# Godot generated editor data and local test output.
+/.godot/
+/.audit_runtime/
+
+# Local recovery snapshots stay on this computer.
+/backups/
+
+# Editor and operating-system scratch files.
+*.tmp
+*~
+.DS_Store

@@ -1,0 +1,218 @@
+[
+  {
+    "kind": "P",
+    "name": "croc",
+    "bones": 10,
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "JumpStart",
+      "Airborne",
+      "Landing",
+      "Dodge",
+      "Block",
+      "PerfectBlock",
+      "Attack",
+      "Special",
+      "Hit",
+      "Death",
+      "Victory",
+      "DodgeForward",
+      "DodgeBack",
+      "DodgeLeft",
+      "DodgeRight",
+      "Attack2",
+      "Attack3"
+    ],
+    "parts": {
+      "Body": 772,
+      "Weapon": 190
+    }
+  },
+  {
+    "kind": "N",
+    "name": "monitor_body",
+    "bones": 9,
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "JumpStart",
+      "Airborne",
+      "Landing",
+      "Dodge",
+      "Block",
+      "PerfectBlock",
+      "Attack",
+      "Special",
+      "Hit",
+      "Death",
+      "Victory",
+      "DodgeForward",
+      "DodgeBack",
+      "DodgeLeft",
+      "DodgeRight",
+      "Attack2",
+      "Attack3"
+    ],
+    "parts": {
+      "Body": 1556
+    }
+  },
+  {
+    "kind": "B",
+    "name": "wizard",
+    "bones": 7,
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "JumpStart",
+      "Airborne",
+      "Landing",
+      "Dodge",
+      "Block",
+      "PerfectBlock",
+      "Attack",
+      "Special",
+      "Hit",
+      "Death",
+      "Victory",
+      "DodgeForward",
+      "DodgeBack",
+      "DodgeLeft",
+      "DodgeRight",
+      "Attack2",
+      "Attack3"
+    ],
+    "parts": {
+      "Weapon": 76,
+      "Body": 510
+    }
+  },
+  {
+    "kind": "R",
+    "name": "bomb",
+    "bones": 8,
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "JumpStart",
+      "Airborne",
+      "Landing",
+      "Dodge",
+      "Block",
+      "PerfectBlock",
+      "Attack",
+      "Special",
+      "Hit",
+      "Death",
+      "Victory",
+      "DodgeForward",
+      "DodgeBack",
+      "DodgeLeft",
+      "DodgeRight",
+      "Attack2",
+      "Attack3"
+    ],
+    "parts": {
+      "Body": 1172
+    }
+  },
+  {
+    "kind": "Q",
+    "name": "snakegod",
+    "bones": 6,
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "JumpStart",
+      "Airborne",
+      "Landing",
+      "Dodge",
+      "Block",
+      "PerfectBlock",
+      "Attack",
+      "Special",
+      "Hit",
+      "Death",
+      "Victory",
+      "DodgeForward",
+      "DodgeBack",
+      "DodgeLeft",
+      "DodgeRight",
+      "Attack2",
+      "Attack3"
+    ],
+    "parts": {
+      "Body": 1830,
+      "Crown": 336
+    }
+  },
+  {
+    "kind": "K",
+    "name": "snakeking",
+    "bones": 6,
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "JumpStart",
+      "Airborne",
+      "Landing",
+      "Dodge",
+      "Block",
+      "PerfectBlock",
+      "Attack",
+      "Special",
+      "Hit",
+      "Death",
+      "Victory",
+      "DodgeForward",
+      "DodgeBack",
+      "DodgeLeft",
+      "DodgeRight",
+      "Attack2",
+      "Attack3"
+    ],
+    "parts": {
+      "Body": 2676,
+      "Crown": 136
+    }
+  },
+  {
+    "kind": "W",
+    "name": "monitor_rider",
+    "bones": 11,
+    "clips": [
+      "Idle",
+      "Walk",
+      "Run",
+      "JumpStart",
+      "Airborne",
+      "Landing",
+      "Dodge",
+      "Block",
+      "PerfectBlock",
+      "Attack",
+      "Special",
+      "Hit",
+      "Death",
+      "Victory",
+      "DodgeForward",
+      "DodgeBack",
+      "DodgeLeft",
+      "DodgeRight",
+      "Attack2",
+      "Attack3"
+    ],
+    "parts": {
+      "Body": 754,
+      "Weapon": 10,
+      "Offhand": 10
+    }
+  }
+]

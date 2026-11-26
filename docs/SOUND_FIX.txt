@@ -1,0 +1,24 @@
+CHESS DUEL — PHASE 3 SOUND FIX
+
+Observed in input project:
+- main.gd did call Sound.set_music("menu").
+- WAV import used auto-detected loop and QOA compression; audio_manager set loop_mode only, not loop_end. This is a plausible cause of silent/stalled playback, not a reproduced diagnosis.
+- Smoke test asserted playing, not full loop points, mixer gain or F5 scene startup.
+- Parry, block, counter and regular attacks lacked differentiated event audio.
+
+Changes:
+- Explicit PCM import and full forward loop for music and ambience; duplicate streams with explicit sample endpoints. Active music restarts if unexpectedly stopped. Crossfade and battle layers kept.
+- Original stereo music, extra original combat cues, differentiated existing CC0 hits, limited one-shot voices, pitch variation, quieter ambience, reset mixer button. Existing saved volume settings honored.
+- Main menu, board move/capture, alternate duel and 3D combat event hookups.
+- Existing rigs, maps, animations, test scenes and F5 entry preserved. Removed only generated .godot cache from delivery; Godot regenerates on import.
+
+Local validation (Godot 4.7 executable required):
+  godot --headless --path . --editor --import
+  godot --headless --path . --script res://scripts/tests/audio_smoke.gd
+  godot --headless --path . --script res://scripts/tests/main_audio_smoke.gd
+  godot --headless --path . --script res://scripts/tests/combat_smoke.gd
+  godot --headless --path . --quit-after 120 res://scenes/tests/sound_test.tscn
+  godot --path .
+If your executable is named differently, replace godot with its path. F5 must play menu music; Settings > Audio > RESET AUDIO restores defaults if muted. F6 in scenes/tests/sound_test.tscn tests cues individually. Listen through a complete menu loop and a real duel. Headless checks cannot verify audibility on speakers.
+
+Validation limitation: No Godot executable or network access was available in the editing environment; no engine run or listening test was performed. Static file/asset checks only. Keep old project until local checks pass.

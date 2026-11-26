@@ -1,0 +1,27 @@
+CHESS DUEL - CHARACTER MOTION UPDATE
+
+Base: chessduel_floating_island_dynamic.zip
+All 7 uploaded OBJ meshes match the project originals byte-for-byte.
+Original textures, team colors, HP/speed/damage stats, map assets and projectile effects retained.
+
+Test: import project.godot in Godot 4.x. Run main with F5.
+To directly test any of 7 fighters, open scenes/tests/animation_lab.tscn and press F6 (Run Current Scene).
+Choose player and AI opponent. F2 returns to fighter selection.
+WASD normal movement; Shift sprint; Space jump; Alt + WASD grounded dodge;
+LMB attack; RMB block (timed perfect block); Q special.
+
+Motion states: idle, normal movement, sprint, jump launch, airborne, landing,
+dodge, guard, perfect guard, light attack, special, hit reaction, defeat and victory.
+Species profiles use GPU vertex deformation (gait, lower-body/tail movement) plus
+procedural root transforms. Pawn retains independently animated spear; Rook has held
+Magma Bomb during special and victory. The other weapons are still integrated in the OBJ.
+Not 98 independently authored skeletal animation clips. No rig is included.
+Dodge is ground-only, cancels pending attacks, and cannot begin while guarding.
+AI uses existing combat behavior (does not actively dodge or block).
+The motion update is in the existing 3D Floating Island Human vs AI mode only.
+Other maps and local human-vs-human still use the existing 2.5D duel.
+The animation lab uses the same dynamic arena and timer as the main duel.
+
+Validation: original model identity, unchanged stats, literal resource paths and ZIP integrity checked.
+Godot executable unavailable in the build environment. No runtime, shader compilation,
+visual animation, or browser-export test has been performed. Inspect in Godot before release.

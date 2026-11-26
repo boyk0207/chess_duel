@@ -1,0 +1,32 @@
+CHESS DUEL — FLOATING ISLAND V2
+Base: chessduel_floating_graphics_update.zip
+
+F5 runs only main.tscn. F6 on scenes/tests/animation_lab.tscn opens the duel test; F6 on scenes/tests/rig_preview.tscn opens the clip viewer. No test entry added to the main menu.
+
+FEATURES
+- Original textured rope bridge restored. Bridge_Segmented.glb has all original 478 triangles with original UVs and texture, split into 17 planks, 10 rope halves and 4 posts. Planks have individual approximate box colliders. Bridge attacks from specials can drop six adjacent interior planks once per bridge. Rope halves and remaining planks drop separately when the connected island collapses.
+- Satellite islands and edge strips: five seconds of warning, glowing crack, increasing shake and dust; final 1.4 seconds tilt; then 1.8-second accelerating fall. The island's moving collision follows the visible island. Loose plank collisions are disabled as each plank starts falling.
+- Four updrafts (cyan rings), reachable by jumping off the main/outer island edges. They lift both fighters; they turn off when the corresponding satellite drops. Moving east-side ferry runs until 15s, then returns to central arena. Ferry is an AnimatableBody3D, not a decorative floating object.
+- Five shuffled crystal types: +25% damage for 5s, +25% movement for 5s, 10% max HP heal, immediately reset special cooldown, +40% knockback for 5s. First at 10s, next every 8s until 45s; only one on the map at a time. Both fighters may collect them.
+- Six destructible cover objects: four core pillars/walls, two satellite pillars. Hit with normal melee or special/area/projectile attacks. Debris has no collision.
+- From 30s storm transition (sky, fog, sun, wind/cloud movement); lightning telegraphs from 35s every 4s, orange 1.8m ring for 1.25s, 8% max HP hazard damage. Both fighters can be hit. The player dodge window still avoids the hit.
+- Camera shake and HUD warnings. AI uses centerline escape waypoints, sprint, obstacle steering, gap jumps and floor probes; avoids lightning and does not deliberately pursue players onto islands already in warning. This is heuristic, not navmesh/pathfinding; no guarantee it survives every knockback or fall.
+- Existing 45s sudden death, fighter stats, rig clips, attack animations, projectiles and core game remain.
+
+TIMELINE (warning -> fall begins)
+East 15 -> 20s; West 19 -> 24s; North 23 -> 28s; South 27 -> 32s.
+Core edges 31 -> 36s, 34 -> 39s, 37 -> 42s, 40 -> 45s.
+
+MANUAL GODOT TESTS (not run in build environment)
+1. Import project.godot into a new directory; wait for GLB import. F5 should show the existing main game. F6 scenes/tests/animation_lab.tscn -> choose Pawn vs Rook (or Queen), start practice.
+2. Walk/jump over all four bridge decks. Aim a spear/fireball/bomb special down at a plank or use Queen smite; six planks should drop and leave a traversable jump gap. Ensure no invisible solid floor remains.
+3. Observe at 15s and 20s: east island cracks, trembles, tilts and falls. Verify the bridge ropes and planks follow their own drop animations. Try escaping across the bridge during warning.
+4. Jump into cyan wind rings; ride the east ferry between main and satellite, confirm platform carries grounded fighter.
+5. Wait for all five crystal spawns; compare HUD timer, special reset, HP, movement and knockback.
+6. Hit wall/pillar repeatedly and ensure its collision is removed. Aim projectile at cover and verify destruction.
+7. Survive to 35s: look for orange ring, move away; test hit and dodge. Observe core collapse and sudden death.
+8. Lure AI onto outer island early, then watch it retreat at warning; also test AI across a broken bridge and near lightning. Test low speed King/Rook and all seven characters.
+9. Open scenes/tests/rig_preview.tscn, F6; inspect the prior 98 clips. Verify F5 remains main game.
+10. Web export smoke/FPS test in Compatibility renderer. Not performed here; no Godot executable in build environment.
+
+Offline checks: original 131 other files byte-identical; all literal resource paths resolve; original bridge geometry/UV/material/texture preserved; 98 clips and 1666 sampled bone poses passed existing numeric validator. This does not certify runtime parsing, collision, import, visual quality or FPS.

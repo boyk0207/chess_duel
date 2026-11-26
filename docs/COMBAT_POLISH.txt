@@ -1,0 +1,57 @@
+CHESS DUEL - COMBAT POLISH (V4.2 base)
+====================================
+Open project.godot. F5 runs the unchanged main game. Run scenes/tests/rig_preview.tscn
+with F6 to preview the 20 named clips per character, or scenes/tests/animation_lab.tscn
+with F6 to practice any matchup. F2 returns to the lab selection.
+The new effects apply to the Floating Island 3D duel, not legacy 2.5D maps.
+
+Combat:
+- Local 35-65 ms light hit pause, 70 ms special, 100 ms lethal (nominal
+  durations rounded by physics tick). No Engine.time_scale mutation.
+  Physics combat updates, combat timers and rig playback pause briefly;
+  existing environment/FX tweens can continue independently.
+- World-space ribbon trails sample actual animated weapon bones for P/B/W
+  (dual blades for W). N/R/Q/K use head/tail energy trails. Existing projectile
+  assets and release delays are preserved; Rook still uses its Magma Bomb.
+- Attack / Attack2 / Attack3 cycle on connected consecutive basic attacks.
+  Miss/timeout, non-blocked hit, special or dodge breaks the chain.
+  Stage 3 adds 20% knockback, not additional base damage. Queen's existing
+  two half-damage hits count as one attack stage.
+- Alt+W/A/S/D selects one of four new skeletal dodge clips. Existing dodge
+  distance, 0.2s immunity, and 2s cooldown preserved. Diagonals choose closest
+  axis. Normal facing remains camera-relative.
+- RMB at impact within first 0.18s grants one perfect block per press.
+  Counter applies +25% to next successful damaging hit within 2s, not stacked
+  with Power Shard bonus. Shard timers remain independent. AI keeps prior logic.
+- Short Q/LMB buffers (0.30s/0.24s); Q prioritized when ready. No simultaneous
+  attack windups. All raw stats and cooldown values unchanged.
+- Damage popup shows actual HP removed; blocked/counter/KO color feedback.
+  Lightning also displays damage. Continuous Sudden Death drain has no popup.
+- Short crossfade (0.045s timed, 0.10s locomotion); no per-frame seek.
+- Different dust intervals by species, heavy landing rings for R/K/W.
+- Lethal attack impact burst, ring and K.O. label, then a 2.4s victory orbit.
+  Falls/hazards use the normal ending; no new lethal melee finisher animation.
+
+Regression checklist (in Godot):
+1. F5 starts menu only. F6 rig_preview shows 20 clips per fighter, play each.
+2. F6 animation_lab, choose each of 7 fighters. Try all four dodge directions.
+3. Connect 3 consecutive basic attacks. Verify third knockback, miss resets,
+   and Queen hits twice without skipping a combo stage. Q during LMB recovery.
+4. Perfect block just before impact, then counter within 2 seconds. Holding
+   block should not repeatedly parry. Check normal block / shard / dodge.
+5. Shoot projectile from vortex with 80-degree camera pitch. Test weapon trails,
+   all existing projectiles, collapsing curved bridges, shards, lightning.
+6. Win, lose, ring-out, double KO. Camera returns to board/lab only once. F2
+   during hitstop or cinematic must not affect a subsequent duel.
+7. Run a browser export with Compatibility, check FPS and visual readability.
+
+Optional headless smoke test (requires an installed Godot, import first):
+  godot --headless --editor --path . --import
+  godot --headless --path . --script res://scripts/tests/combat_smoke.gd
+The script checks all 140 imports, perfect block, counter, dodge immunity and
+combo scheduling. It is supplied but NOT executed in the build environment.
+
+Offline validation: original 98 clips and binary data preserved; 42 new clips;
+140 clips total, 2380 sampled poses. See COMBAT_RIG_VALIDATION.txt.
+Godot runtime was not available. Rendering/physics/actual import, smoke script,
+FPS and gameplay quality must be checked in Godot; no zero-bug guarantee.

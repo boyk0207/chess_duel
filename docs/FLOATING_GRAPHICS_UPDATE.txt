@@ -1,0 +1,38 @@
+FLOATING ISLAND GRAPHICS OVERHAUL — development build
+
+RUN
+F5: res://scenes/main.tscn (normal game; no test menu)
+F6: res://scenes/tests/rig_preview.tscn (skeletal clips, separately)
+F6: res://scenes/tests/animation_lab.tscn (practice, separately)
+Choose Floating Island and Human vs AI to see the updated 3D duel.
+Other 2.5D arenas and the chess board visuals are unchanged.
+
+VISUAL CHANGES
+- Camera-local sky, ambient fill, warm directional sunlight and fog.
+- Moving low-poly clouds, eight distant islands, scrolling waterfall shaders.
+- Visible floors matching the collision boxes, cliff layers, visible plank decks.
+- Grass shader, decorative vegetation with gentle sway, small rocks and flowers.
+- Decorations are children of the relevant collapsing parts and have no collision.
+- New cyan jump-pad rings and faceted golden pickup.
+- Hide chess scenery during 3D duels; restore when returning to the board.
+- Compatibility renderer selected for eventual Web export.
+
+No changes to rig assets, damage, cooldowns, collision shape dimensions or collapse schedule.
+Visual effects use basic materials, low-poly meshes and spatial shaders, not Forward+-only GI.
+
+RELEASE EXPORT
+No export preset was present in the source project. When creating the itch.io Web export,
+set Resources > export selected scenes (scenes/main.tscn and dependencies) or exclude the test
+files scenes/tests/rig_preview.tscn, scripts/tests/rig_preview.gd, scenes/tests/animation_lab.tscn, scripts/tests/animation_lab.gd and tools/*; or exclude scenes/tests/*, scripts/tests/*, docs/* and tools/*.
+Do not exclude scripts/rig_factory.gd, rig GLBs, or the new graphics resources.
+This development ZIP intentionally retains the tests.
+
+VALIDATION
+Resource references and archive integrity checked. Godot executable is unavailable in this
+build environment, so shader compilation, graphical appearance and actual FPS are unverified.
+The change to Compatibility can affect how existing scenes/shaders look; check them in Godot.
+Check bridge crossing, collapse, return to chess, and F6 practice/rig preview before publishing.
+
+Assets: original Floating Island project assets plus four GLBs from user-provided VoxelMeadow.
+Original VoxelMeadow README retained at assets/arena/meadow/README.txt. Confirm asset licenses
+before public distribution; the supplied VoxelMeadow archive did not include a separate license.

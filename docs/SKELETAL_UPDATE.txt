@@ -1,0 +1,31 @@
+CHESS DUEL — SKELETAL RIG UPDATE
+
+RUN
+1. Extract the entire ZIP into a new folder. Import project.godot in Godot 4.x.
+2. Open scenes/tests/rig_preview.tscn and press F6 to inspect one character at a time.
+   Select any of the 7 fighters, then any of the 14 animation clips.
+   Left/right arrows orbit the camera. Pause, replay, team palette, and equipment visibility are available.
+3. Open scenes/tests/animation_lab.tscn and press F6 for a real duel practice.
+4. F5 starts the existing game. Skeletal animations are wired into the Floating Island 3D duel mode.
+   Other existing 2.5D arenas and board pieces keep their prior visuals.
+
+RIG ASSETS: assets/rigs/P.glb, N.glb, B.glb, R.glb, Q.glb, K.glb, W.glb.
+Each file includes a glTF skin, named hierarchy of joints, inverse bind matrices, vertex JOINTS_0 and WEIGHTS_0, and 14 named keyframed animations. Import in Blender using File > Import > glTF 2.0 to edit the skeleton and actions.
+The 57 bones across the seven files are geometry-guided approximate rigs, not hand-painted production weights.
+
+EQUIPMENT:
+P: spear with red trim, separate skinned Weapon mesh and WeaponJoint; separate OBJ.
+N: source model has no carried weapon; four leg bones, head and tail.
+B: staff separate Weapon mesh and joint; separate OBJ.
+R: existing assets/magma_bomb.glb is a separate projectile and held model attached to WeaponJoint in the 3D duel.
+Q: crown/halo geometry separate Crown mesh and joint; original has no carried weapon.
+K: crown separate Crown mesh and joint; original has no carried sword.
+W: two original blades separated as Weapon and Offhand meshes with independent joints; separate OBJs.
+Standalone OBJ/MTL/PNG assets are in assets/rigs/separated/. Their origins are at their rig joints. Geometry was split along palette/position boundaries; contact surfaces may need hand cleanup if repurposed as standalone models. All seven original OBJ files are unchanged.
+
+CLIPS (14 per character = 98): Idle, Walk, Run, JumpStart, Airborne, Landing, Dodge, Block, PerfectBlock, Attack, Special, Hit, Death, Victory.
+Animations are independently stored clips with keyed bone rotations/translations (not whole-model shader displacement). Generated poses use shared animation logic with species-dependent parameters, not 98 individually hand-animated clips. Original mesh geometry was preserved, with heuristic weights; inspect joint bending and weapon pivots visually before release. Existing combat delays, HP, speed, cooldowns and projectile logic remain unchanged. Dodge still uses a single dodge clip; left/right visual mirroring is not implemented. Death does not physically detach equipment; the meshes are separable/editable.
+
+CHECKS: docs/RIG_VALIDATION.txt contains offline numerical checks of the GLB binary format, accessors, rest bind matrices, normalized weights, quaternion lengths and 1,666 sampled skeletal transforms. This does NOT validate artistic motion quality or Godot import/runtime. No Godot executable was available. If an import or runtime error occurs, report the exact error and scene. Do not publish until visual/runtime tests are completed.
+
+REBUILD (optional): python tools/build_rigs.py and python tools/verify_rigs.py (numpy, scipy required).
