@@ -36,7 +36,7 @@ func run_checks() -> void:
 	for i in 40:
 		if wrong_code_errors > 0: break
 		await create_timer(0.05).timeout
-	check(wrong_code_errors == 1 and imposter.player_id == 0, "incorrect room code is rejected")
+	check(wrong_code_errors == 1 and imposter.player_id == 0 and not imposter.join_pending(), "incorrect room code is rejected and Join can retry")
 	imposter.leave_room()
 	imposter.queue_free()
 	var guest = load("res://scripts/network/multiplayer.gd").new()
@@ -89,6 +89,18 @@ func run_checks() -> void:
 	host.leave_room()
 	await create_timer(0.1).timeout
 	check(not is_instance_valid(host.lan_host), "embedded Host stops on leave")
+	var delayed = load("res://scripts/network/multiplayer.gd").new()
+	root.add_child(delayed)
+	var timeout_errors: Array[String] = []
+	delayed.error_received.connect(func(message: String): timeout_errors.append(message))
+	delayed._pending_action = "join"
+	delayed._pending_elapsed = 19.9
+	delayed._process(0.2)
+	check(timeout_errors.size() == 1 and timeout_errors[0].contains("timed out") and not delayed.join_pending() and delayed.player_id == 0, "slow Join times out and resets for retry")
+	delayed._pending_action = "join"
+	delayed.leave_room()
+	check(not delayed.join_pending() and delayed.pending_seconds_left() == 20, "cancelled Join cannot complete later")
+	delayed.queue_free()
 	var sound := root.get_node("Sound")
 	for player in sound.music_players.values():
 		player.stop()

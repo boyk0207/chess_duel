@@ -131,9 +131,10 @@ Hell Gate, Frozen Peak, Dark Desert, Sanctuary-ийн **өнгө, гэрэл, bo
 
 ## IV. Online Multiplayer
 
-### Phase 11 — Online Multiplayer · 7/17 · **LAN PvP-г хэрэглэгчийн тусгай хүсэлтээр эрт хэрэгжүүлсэн; албан Phase 4 хэвээр**
+### Phase 11 — Online Multiplayer · 8/18 · **LAN PvP-г хэрэглэгчийн тусгай хүсэлтээр эрт хэрэгжүүлсэн; албан Phase 4 хэвээр**
 
 - [x] Host / Join Game: Host тоглоом дотроо LAN WebSocket server асаана; Join нь Host IP:8080-д холбогдоно. Loopback ба хоёр тусдаа Godot process smoke PASS, хоёр өөр компьютерийн QA үлдсэн.
+- [x] Join хүлээлтийн хамгаалалт: холболт/өрөөний хариунд 20 секундын timeout, харагдах countdown, BACK/CANCEL ба retry; lobby smoke PASS. Бодит удаан Wi-Fi QA үлдсэн.
 - [x] Private Room Code: 6 тэмдэгт кодоор Join; буруу кодыг Host татгалзана. Loopback smoke PASS.
 - [x] Player Lobby: хоёр client, Ready, Start, Leave урсгал loopback smoke PASS.
 - [x] Map Selection sync: Host-ийн сонгосон stage Start мессежээр Join талд хүрч, main scene-д хэрэглэгдсэнийг smoke тестээр шалгасан.

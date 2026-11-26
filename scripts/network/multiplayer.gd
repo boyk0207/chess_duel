@@ -12,6 +12,7 @@ signal promotion_selected(kind: String)
 
 const LanHost = preload("res://scripts/network/lan_host.gd")
 const LAN_PORT := 8080
+const JOIN_TIMEOUT_SECONDS := 20.0
 
 var socket := WebSocketPeer.new()
 var connected := false
@@ -23,6 +24,7 @@ var _was_open := false
 var _pending_action := ""
 var _pending_code := ""
 var _pending_stage := 0
+var _pending_elapsed := 0.0
 var lan_host: Node
 var host_address := ""
 var match_stage := 0
@@ -36,7 +38,20 @@ func _ready() -> void:
         break
     if host_address.is_empty(): host_address = "127.0.0.1"
 
-func _process(_delta: float) -> void:
+func join_pending() -> bool:
+    return _pending_action == "join"
+
+func pending_seconds_left() -> int:
+    return maxi(0, int(ceil(JOIN_TIMEOUT_SECONDS - _pending_elapsed)))
+
+func _process(delta: float) -> void:
+    if not _pending_action.is_empty():
+        _pending_elapsed += delta
+        if _pending_elapsed >= JOIN_TIMEOUT_SECONDS:
+            var action := _pending_action
+            leave_room()
+            error_received.emit("Joining room timed out. Check Host IP, Wi-Fi and port 8080; then try again." if action == "join" else "Creating room timed out. Please try again.")
+            return
     socket.poll()
     var status := socket.get_ready_state()
     if status == WebSocketPeer.STATE_OPEN:
@@ -59,25 +74,21 @@ func _process(_delta: float) -> void:
         if not latest_duel_state.is_empty(): _handle(latest_duel_state)
     elif status == WebSocketPeer.STATE_CLOSED and (_was_open or not _pending_action.is_empty()):
         var was_connected := _was_open
-        _was_open = false
-        connected = false
-        room_code = ""
-        state = {}
-        _pending_action = ""
         error_received.emit("Disconnected from Host" if was_connected else "Could not connect to Host. Check LAN IP and port 8080")
-        state_changed.emit(state)
+        leave_room()
 
 func _connect_and_send(action: String, code: String = "", stage: int = 0) -> void:
-    if socket.get_ready_state() == WebSocketPeer.STATE_OPEN:
-        _send({"type": action, "code": code, "stage": stage})
-        return
+    if socket.get_ready_state() != WebSocketPeer.STATE_CLOSED: socket.close(-1)
     socket = WebSocketPeer.new()
     _was_open = false
     _pending_action = action
     _pending_code = code
     _pending_stage = stage
+    _pending_elapsed = 0.0
     var err := socket.connect_to_url(server_url)
-    if err != OK: error_received.emit("Connection failed: " + str(err))
+    if err != OK:
+        leave_room()
+        error_received.emit("Connection failed: " + str(err))
 
 func create_room(stage: int = 0) -> void:
     if not is_instance_valid(lan_host):
@@ -118,6 +129,7 @@ func leave_room() -> void:
     _was_open = false
     connected = false
     _pending_action = ""
+    _pending_elapsed = 0.0
     if is_instance_valid(lan_host):
         lan_host.stop_host()
         lan_host.queue_free()
@@ -134,10 +146,11 @@ func _send(msg: Dictionary) -> void:
 func _handle(msg: Dictionary) -> void:
     match str(msg.get("type", "")):
         "joined":
-            _pending_action = ""
             room_code = str(msg.get("code", ""))
             player_id = int(msg.get("player", 0))
         "state":
+            _pending_action = ""
+            _pending_elapsed = 0.0
             state = msg
             state_changed.emit(state)
         "start":
@@ -162,4 +175,7 @@ func _handle(msg: Dictionary) -> void:
         "duel_state": duel_state_received.emit(msg.get("state", {}))
         "duel_result": duel_result_received.emit(int(msg.get("seq", 0)), bool(msg.get("white_won", false)))
         "promotion_choice": promotion_selected.emit(str(msg.get("kind", "")))
-        "error": error_received.emit(str(msg.get("message", "Unknown error")))
+        "error":
+            var message := str(msg.get("message", "Unknown error"))
+            if not _pending_action.is_empty(): leave_room()
+            error_received.emit(message)

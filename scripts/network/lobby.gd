@@ -15,6 +15,7 @@ var info: Label
 var status_label: Label
 var ready_button: Button
 var start_button: Button
+var join_button: Button
 var is_player_ready := false
 var mode := "home"
 
@@ -93,8 +94,8 @@ func _ready() -> void:
     code_input.custom_minimum_size.y = 50
     code_input.text_submitted.connect(func(_value: String): _join_room())
     join_page.add_child(code_input)
-    _button(join_page, "JOIN", _join_room)
-    _button(join_page, "BACK", func(): _show_page("home"))
+    join_button = _button(join_page, "JOIN", _join_room)
+    _button(join_page, "BACK / CANCEL", _cancel_join)
 
     room_page = _page()
     _label(room_page, "GAME LOBBY", 27)
@@ -112,6 +113,10 @@ func _ready() -> void:
     net.match_started.connect(func(_code: String): hide(); start_game.emit())
     _show_page("home")
 
+func _process(_delta: float) -> void:
+    if visible and mode == "join" and net.join_pending():
+        status_label.text = "Joining room... %ds left. BACK / CANCEL stops this attempt." % net.pending_seconds_left()
+
 func _show_page(page: String) -> void:
     mode = page
     home_page.visible = page == "home"
@@ -128,12 +133,19 @@ func _create_room() -> void:
     net.create_room(int(get_parent().get("stage_idx")))
 
 func _join_room() -> void:
+    if net.join_pending(): return
     var code := code_input.text.strip_edges().to_upper()
     if code.length() != 6:
         status_label.text = "Enter a valid 6-character code."
         return
     status_label.text = "Joining room..."
+    join_button.disabled = true
     net.join_room(code, host_ip_input.text)
+
+func _cancel_join() -> void:
+    if net.join_pending(): net.leave_room()
+    join_button.disabled = false
+    _show_page("home")
 
 func _toggle_ready() -> void:
     is_player_ready = not is_player_ready
@@ -174,6 +186,7 @@ func _on_state(s: Dictionary) -> void:
     start_button.text = "START GAME" if all_ready else "WAITING FOR BOTH READY"
 
 func _on_error(message: String) -> void:
+    join_button.disabled = false
     status_label.text = message
 
 func _leave_room() -> void:
@@ -186,7 +199,9 @@ func _close() -> void:
     hide()
 
 func open() -> void:
+    if net.join_pending(): net.leave_room()
     is_player_ready = false
+    join_button.disabled = false
     code_input.text = ""
     host_ip_input.text = ""
     _show_page("home")

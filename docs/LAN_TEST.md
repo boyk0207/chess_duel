@@ -16,10 +16,11 @@ Floating Island (stage 0) нь 3D тулаантай. Бусад дөрвөн st
 5. Тулааны дундуур Join тоглоомоос гарвал Host lobby/menu рүү буцах, Host гарахад Join мэдэгдэл авах эсэхийг шалга. Дараа нь өрөөг шинээр үүсгээд дахин холбогдоно.
 
 Холбогдохгүй бол хоёр төхөөрөмж нэг сүлжээнд байгаа эсэх, Host-ийн зөв LAN IP, өрөөний код, Ubuntu firewall-д TCP `8080` inbound нээлттэй эсэхийг шалга. LAN IP нь интернет matchmaking хаяг биш.
+Join-д 20 секундын countdown харагдана. Хариу ирэхгүй бол timeout алдаа гарч дахин JOIN дарж болно; **BACK / CANCEL** нь идэвхтэй оролдлогыг цуцална. Удаан Wi-Fi дээр Host IP, код, firewall-аас гадна Host тоглоомын lobby нээлттэй эсэхийг шалга. Timeout нь тулааны үеийн ping/packet loss-ийг засахгүй.
 
 ## Автомат баталгаа
 
-- `scripts/tests/lan_lobby_smoke.gd`: room code, Ready/Start, ээлж, энгийн нүүдэл, Leave.
+- `scripts/tests/lan_lobby_smoke.gd`: room code, Ready/Start, ээлж, энгийн нүүдэл, Leave, буруу кодын дараах retry, Join timeout/cancel.
 - `scripts/tests/lan_board_smoke.gd` ба `lan_two_process_smoke.gd`: Host/Join board-ийн энгийн нүүдэл ба map сонголт.
 - `scripts/tests/lan_duel_scene_smoke.gd`: 3D/2.5D Host input, HP/position snapshot, black attack/block/special, projectile replica, packet хэмжээ; нурсан арлын freed-node snapshot, Join collision removal ба хөдөлгөөний prediction/interpolation.
 - `scripts/tests/lan_pvp_two_process_smoke.gd -- host|guest 0..4`: бүх таван stage-ийг хоёр тусдаа Godot process-т шалгана: stage 0 3D, бусад 2.5D capture; Join input-ийн Host хөдөлгөөн; stage 0/1-д Join Attack-ийн damage, Special cooldown; довтлогч/хамгаалагчийн ялалт; энгийн болон capture promotion; en passant; тулааны дундах disconnect.
