@@ -35,7 +35,7 @@ Network compatibility-г эртнээс тооц; хэрэглэгч LAN PvP-г 
 
 - Godot 4.7 төсөл; 2026-11-25-нд 4.7.2 дээр шалгасан. Зорилтот OS Ubuntu 24.04 LTS, платформ Steam ба itch.io; export хараахан баталгаажаагүй.
 - `project.godot` entry point. F5 зөвхөн `scenes/main.tscn`-ийг нээнэ. F6-д `scenes/tests/`-ийн хэрэгтэй scene-ийг нээгээд ажиллуул.
-- Зөвхөн энэ project хавтас дотор ажилла. Энэ хавтас тусдаа Git repository биш; гаднах Git root-д commit хийхгүй. Өөрчлөлтийн өмнө `backups/`-д snapshot ав (`.godot/`, өмнөх backup, түр runtime файлыг хас).
+- Зөвхөн энэ project хавтас дотор ажилла. 2026-11-26-нд энэ хавтсыг тусдаа Git repository болгож, `main`-ийг `github.com/boyk0207/chess_duel`-д push хийсэн; гаднах `/home/buyna` Git root-д commit хийхгүй. Өөрчлөлтийн өмнө Git checkpoint эсвэл `backups/`-д snapshot ав. `.gitignore` нь `backups/`, `.godot/`, `.audit_runtime/`-ийг хасна; эх код, scene, rig, audio, asset, лиценз/credit, баримт бичгийг commit-д хадгал.
 - 7 rig, 57 bone, 140 animation, animation нэр, asset, map, mechanic-уудыг хадгал. Шаардлагагүй файл устгахгүй. Үндсэн код засахаас өмнө ажлын хүрээ ба буцах хувилбарыг тогтоо.
 
 ## Зураглал

@@ -216,4 +216,6 @@ Hell Gate, Frozen Peak, Dark Desert, Sanctuary-ийн **өнгө, гэрэл, bo
 
 ## Одоогийн дараагийн алхам
 
+2026-11-26: Төслийн 602 source/asset/doc файлын анхны Git commit `main` branch-д `boyk0207/chess_duel` руу push хийгдсэн. `backups/`, `.godot/`, `.audit_runtime/` нь локал хэвээр; энэ нь хөгжүүлэлтийн phase-ийг өөрчлөхгүй.
+
 Phase 4-ийн график QA-г `docs/PHASE4_BOARD_QA.md`-ийн дагуу F5 дээр хийж, 5 stage-ийн хөлөг, орчны шинэ asset, check/checkmate хүрээ, promotion overlay, capture cinematic-ийг харж үнэлнэ. Үндсэн Chess Duel-д check/checkmate rule logic холбогдсон; King тулаанд ялагдах хувилбар үр дүн хэвээр. Хэрэглэгч зөвшөөрөх хүртэл Phase 5 руу шилжихгүй. LAN PvP-ийн хоёр өөр компьютерийн график, latency, input, hazard QA `docs/LAN_TEST.md`-д үлдсэн. Menu-ийн хоёр Stable Audio take-ийн тухайн output-ийн эрхийн баримт release материалд хавсаргагдаагүй.
