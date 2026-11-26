@@ -143,7 +143,7 @@ Hell Gate, Frozen Peak, Dark Desert, Sanctuary-ийн **өнгө, гэрэл, bo
 - [x] Combat Synchronization: Join input Host fighter-ийг хөдөлгөж, Host-ийн duel snapshot/үр дүн Join-д хүрснийг stage 0 3D ба stage 1 2.5D хоёр-process smoke баталсан. Stage 0-д 30 Hz snapshot, Join prediction/interpolation ба хуучин state coalescing нэмсэн; хоёр компьютерийн latency QA дутуу.
 - [x] Server-authoritative Damage & HP: Host процесс damage/HP/ялагчийг дангаар бодож, Join state replica авна. Scene smoke HP/position, харын attack/block/special PASS; тусдаа төхөөрөмжийн QA үлдсэн.
 - [ ] Special Attack Synchronization: Host special-ийг бодож, 3D projectile snapshot дамжуулна; stage 0/1 хоёр-process-т Join Pawn Special cooldown, scene smoke-д Black Rook bomb PASS. Бүх 7 дүрийн хоёр компьютерийн visual/SFX QA дутуу.
-- [ ] Map Hazard Synchronization: Floating Island-ийн Host snapshot-д island/bridge, ferry, crystal, lightning, storm төлөв орсон. Бүрэн hazard timeline ба хоёр компьютерийн QA дутуу.
+- [ ] Map Hazard Synchronization: Floating Island-ийн Host snapshot-д island/bridge, ferry, crystal, lightning, storm болон Power Shard popup-ийн эзэн/төрөл орсон. Хоёр дүр зэрэг ойр байх pickup-ийн хамгийн ойр дүр сонголт scene smoke, Join popup хоёр-process smoke PASS. Бүрэн hazard timeline ба хоёр компьютерийн график QA дутуу.
 - [ ] Ping ба latency handling: stage 0-д эхний prediction/interpolation нэмсэн; RTT хэмжүүр, packet loss/jitter, хоёр компьютерийн latency QA дутуу.
 - [ ] Disconnect & Reconnect.
 - [ ] Anti-cheat хамгаалалт.

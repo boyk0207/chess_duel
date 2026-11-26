@@ -69,6 +69,31 @@ func run_checks() -> void:
 	check(guest3d.collapses[1]["part"].is_queued_for_deletion(), "3D Join removes expired island collision")
 	await process_frame
 	guest3d.lan_apply_state(host3d._lan_snapshot())
+	host3d.elapsed = 5.0
+	host3d.boost_timer = 9.0
+	host3d.crystal_kind = 0
+	host3d.crystal.position = Vector3(0, 0.8, 0)
+	host3d.crystal.show()
+	host3d.bodies[0].position = Vector3(0.9, 0.2, 0)
+	host3d.bodies[1].position = Vector3(0.1, 0.2, 0)
+	host3d.update_crystals(0.016)
+	check(host3d.boost[1] > 0.0 and host3d.boost[0] == 0.0 and host3d.shard_icons[1].visible and not host3d.shard_icons[0].visible, "3D Host awards a contested Power Shard to the nearer Black fighter")
+	var shard_snapshot: Dictionary = host3d._lan_snapshot()
+	check(JSON.stringify({"type": "duel_state", "state": shard_snapshot}).to_utf8_buffer().size() < 4096, "Power Shard snapshot fits LAN packet limit")
+	guest3d.lan_apply_state(shard_snapshot)
+	check(guest3d.shard_icons[1].visible and not guest3d.shard_icons[0].visible and guest3d.shard_icons[1].get_parent() == guest3d.bodies[1] and guest3d.shard_icon_kind[1] == 0, "3D Join displays Power Shard above its actual owner")
+	guest3d.update_shard_icons(0.25)
+	var popup_remaining: float = guest3d.shard_icon_time[1]
+	guest3d.lan_apply_state(shard_snapshot)
+	check(guest3d.shard_icon_time[1] <= popup_remaining + 0.001, "repeated LAN state does not restart shard popup")
+	host3d.crystal_kind = 1
+	host3d.crystal.position = Vector3(0, 0.8, 0)
+	host3d.crystal.show()
+	host3d.bodies[0].position = Vector3(0.1, 0.2, 0)
+	host3d.bodies[1].position = Vector3(0.9, 0.2, 0)
+	host3d.update_crystals(0.016)
+	guest3d.lan_apply_state(host3d._lan_snapshot())
+	check(host3d.speed_boost[0] > 0.0 and guest3d.shard_icons[0].visible and guest3d.shard_icons[0].get_parent() == guest3d.bodies[0] and guest3d.shard_icon_kind[0] == 1, "3D Host and Join show a White-owned Speed Shard above White")
 	var projectile: Node3D = host3d.orb(Color.ORANGE_RED, 0.22)
 	host3d.add_child(projectile)
 	projectile.position = Vector3(1, 2, 3)

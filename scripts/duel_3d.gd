@@ -17,6 +17,9 @@ var crystal_on_east := false
 var crystal_icon: Sprite3D
 var shard_icons: Array[Sprite3D] = []
 var shard_icon_time: Array[float] = [0.0, 0.0]
+var shard_icon_kind: Array[int] = [0, 0]
+var shard_popup_seq: Array[int] = [0, 0]
+var lan_shard_seen_seq: Array[int] = [0, 0]
 const SHARD_POPUP_DURATION := 2.0
 const SHARD_TEXTURES := [
 	preload("res://assets/arena/shards/power.png"),
@@ -279,7 +282,9 @@ func _lan_snapshot() -> Dictionary:
 		broken.append([bool(bridge["broken"]), bool(bridge["cut"]), float(bridge["gap_min"]), float(bridge["gap_max"]), intact])
 	var covers_alive := []
 	for cover in covers: covers_alive.append(is_instance_valid(cover["node"]) and not cover["node"].is_queued_for_deletion())
-	return {"f": fighters_state, "p": shots, "e": elapsed, "over": over, "winner": end_winner, "islands": islands, "bridges": broken, "covers": covers_alive, "ferry": ferry_x, "crystal": [crystal.visible, _lan_array(crystal.position), crystal_kind], "lightning": [is_instance_valid(lightning_warning), _lan_array(lightning_warning.position) if is_instance_valid(lightning_warning) else []], "storm": storm_amount, "boost": boost, "speed": speed_boost, "push": push_boost}
+	var shard_popups := []
+	for i in range(2): shard_popups.append([shard_popup_seq[i], shard_icon_kind[i], shard_icon_time[i]])
+	return {"f": fighters_state, "p": shots, "e": elapsed, "over": over, "winner": end_winner, "islands": islands, "bridges": broken, "covers": covers_alive, "ferry": ferry_x, "crystal": [crystal.visible, _lan_array(crystal.position), crystal_kind], "shards": shard_popups, "lightning": [is_instance_valid(lightning_warning), _lan_array(lightning_warning.position) if is_instance_valid(lightning_warning) else []], "storm": storm_amount, "boost": boost, "speed": speed_boost, "push": push_boost}
 
 func _lan_publish(dt: float) -> void:
 	if lan_role != 1: return
@@ -376,6 +381,21 @@ func lan_apply_state(state: Dictionary) -> void:
 			boost[i] = float(next_boost[i])
 			speed_boost[i] = float(next_speed[i])
 			push_boost[i] = float(next_push[i])
+	var popup_state: Array = state.get("shards", [])
+	for i in mini(popup_state.size(), shard_icons.size()):
+		var entry: Array = popup_state[i]
+		if entry.size() != 3: continue
+		var seq := int(entry[0])
+		var remaining := maxf(0.0, float(entry[2]))
+		if seq != lan_shard_seen_seq[i]:
+			lan_shard_seen_seq[i] = seq
+			if remaining > 0.0: _display_shard_icon(i, int(entry[1]), remaining)
+			else:
+				shard_icon_time[i] = 0.0
+				shard_icons[i].hide()
+		elif remaining <= 0.0:
+			shard_icon_time[i] = 0.0
+			shard_icons[i].hide()
 	var sky_mat := camera.environment.sky.sky_material as ProceduralSkyMaterial
 	sky_mat.sky_top_color = Color("3179bb").lerp(Color("29324c"), storm_amount)
 	sky_mat.sky_horizon_color = Color("d4efff").lerp(Color("838da9"), storm_amount)
@@ -453,6 +473,7 @@ func _lan_reconcile(dt: float) -> void:
 func _lan_guest_tick(dt: float) -> void:
 	get_node("/root/Sound").set_battle_intensity(clampf((1.0 - minf(hp[0] / float(stats[0]["hp"]), hp[1] / float(stats[1]["hp"]))) * 0.75 + elapsed / 120.0, 0.0, 1.0))
 	_lan_guest_motion(dt)
+	update_shard_icons(dt)
 	lan_input_clock += dt
 	if lan_input_clock >= 0.025 and not over:
 		lan_input_clock = 0.0
@@ -1273,12 +1294,17 @@ func make_shard_icon(parent: Node3D, pos: Vector3, icon_pixel_size: float) -> Sp
 	return icon
 
 func show_shard_icon(i: int, kind: int) -> void:
+	shard_popup_seq[i] += 1
+	_display_shard_icon(i, kind, SHARD_POPUP_DURATION)
+
+func _display_shard_icon(i: int, kind: int, duration: float) -> void:
 	var icon := shard_icons[i]
+	shard_icon_kind[i] = kind
 	icon.texture = SHARD_TEXTURES[kind]
 	icon.position.y = float(Data.FIGHT_H[kinds[i]])+0.46
 	icon.modulate = Color.WHITE
 	icon.scale = Vector3.ONE * 0.8
-	shard_icon_time[i] = SHARD_POPUP_DURATION
+	shard_icon_time[i] = duration
 	icon.show()
 
 func update_shard_icons(dt: float) -> void:
@@ -1655,19 +1681,24 @@ func update_crystals(dt: float) -> void:
 			crystal.position = Vector3(0,0.8,0)
 		crystal.rotation.y += dt*2.0
 		crystal.position.y = 0.8+sin(elapsed*3.5)*0.10
+		var collector := -1
+		var closest := 1.4
 		for i in range(2):
-			if bodies[i].position.distance_to(crystal.position)<1.4 and hp[i]>0:
-				match crystal_kind:
-					0: boost[i] = 5.0
-					1: speed_boost[i] = 5.0
-					2: hp[i] = minf(float(stats[i]["hp"]),hp[i]+float(stats[i]["hp"])*0.10)
-					3: special[i] = 0.0
-					4: push_boost[i] = 5.0
-				burst(crystal.global_position,CRYSTAL_COLORS[crystal_kind],10,0.7)
-				crystal.hide()
-				show_shard_icon(i,crystal_kind)
-				get_node("/root/Sound").play_spatial("shard", crystal.global_position, self)
-				break
+			var distance := bodies[i].position.distance_to(crystal.position)
+			if hp[i] > 0.0 and distance < closest:
+				collector = i
+				closest = distance
+		if collector >= 0:
+			match crystal_kind:
+				0: boost[collector] = 5.0
+				1: speed_boost[collector] = 5.0
+				2: hp[collector] = minf(float(stats[collector]["hp"]),hp[collector]+float(stats[collector]["hp"])*0.10)
+				3: special[collector] = 0.0
+				4: push_boost[collector] = 5.0
+			burst(crystal.global_position,CRYSTAL_COLORS[crystal_kind],10,0.7)
+			crystal.hide()
+			show_shard_icon(collector,crystal_kind)
+			get_node("/root/Sound").play_spatial("shard", crystal.global_position, self)
 	else: crystal.hide()
 
 func update_storm(_dt: float) -> void:

@@ -64,6 +64,17 @@ func run_checks() -> void:
 		net.request_move(Vector2i(4, 3), Vector2i(3, 4))
 	check(await wait_for(func(): return game.mode == "duel" and is_instance_valid(game.active_lan_duel)), "capture starts PvP duel")
 	check((game.active_lan_duel.get_script().resource_path == "res://scripts/duel_3d.gd") == (stage == 0), "stage selects its existing duel implementation")
+	if stage == 0:
+		if role == "host":
+			var arena: Variant = game.active_lan_duel
+			arena.boost_timer = 9.0
+			arena.crystal_kind = 0
+			arena.crystal.position = arena.bodies[1].position + Vector3.UP * 0.6
+			arena.crystal.show()
+			arena.update_crystals(0.016)
+			check(arena.boost[1] > 0.0 and arena.shard_icons[1].visible, "Host awards Power Shard to Black fighter")
+		else:
+			check(await wait_for(func(): return game.active_lan_duel.shard_icons[1].visible and not game.active_lan_duel.shard_icons[0].visible and game.active_lan_duel.shard_icons[1].get_parent() == game.active_lan_duel.bodies[1]), "Join sees Power Shard icon above Black fighter")
 	if role == "guest":
 		if stage == 0: game.active_lan_duel.set_physics_process(false)
 		else: game.active_lan_duel.set_process(false)
