@@ -18,7 +18,7 @@ func run_checks() -> void:
 		game._refresh_board_status()
 		game.mode = "board"
 		game.call("_start_duel", Vector2i(0, 1), Vector2i(1, 2))
-		for i in 30:
+		for i in 50:
 			if game.get("mode") == "duel": break
 			await create_timer(0.05).timeout
 		var expected := "island_battle" if stage_index == 0 else "battle"

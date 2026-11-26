@@ -57,7 +57,7 @@
 - [x] Attack хийх нүдэнд улаан ring; structural smoke PASS.
 - [x] Сүүлийн нүүдлийн эхлэл/төгсгөлийн хоёр persistent marker; шинэ тоглолтод арилна, smoke PASS.
 - [x] Үндсэн Chess Duel-д check-ийн нэг улаан, checkmate-ийн хоёр анхааруулах хүрээ; rule ба main smoke PASS. King тулаанд ялагдах хувилбар дүрэм хэвээр, график QA үлдсэн.
-- [x] Capture дээр 0.55 секундийн board camera push, хоёр нүдний highlight, дараа нь duel; буцах flow smoke PASS.
+- [x] Capture дээр 2.1 секундийн board camera close-up, хоёр нүдний highlight, 49 ordered дүрийн хослолд strike/reaction/counter/guard → Walk → Idle arena entrance scene; дараа нь duel ба буцах flow smoke PASS. График QA үлдсэн.
 - [x] N/B/R/Q/W таван сонголттой шинэ Pawn promotion overlay; choice/turn smoke PASS. LAN-ийн энгийн болон capture promotion хоёр-process smoke PASS.
 - [x] Камерын өндөр/өнцөг, shadow-той sun ба хоёр талын stage-д тохирох fill light; structural smoke PASS, график QA үлдсэн.
 

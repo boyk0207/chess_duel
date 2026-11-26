@@ -3,6 +3,7 @@ extends SceneTree
 
 const Data = preload("res://scripts/data.gd")
 const BoardVisual = preload("res://scripts/board_visual.gd")
+const CaptureIntro = preload("res://scripts/capture_intro.gd")
 
 var failures := 0
 
@@ -17,6 +18,13 @@ func check(ok: bool, label: String) -> void:
 		push_error("FAIL: " + label)
 
 func run_checks() -> void:
+	var pairs := {}
+	for attacker_kind in CaptureIntro.KINDS:
+		for defender_kind in CaptureIntro.KINDS:
+			var plan: Dictionary = CaptureIntro.choreography(attacker_kind, defender_kind)
+			if not plan.is_empty() and plan["ready"] in ["Idle", "Walk", "Run", "Block", "DodgeForward"] and plan["strike"] in ["Attack", "Attack2", "Attack3", "Special"] and plan["reaction"] in ["Hit", "Block", "DodgeBack", "DodgeLeft", "DodgeRight"] and plan["counter"] in ["Attack", "Attack2", "Attack3", "Special"] and plan["return_guard"] in ["Block", "DodgeBack", "DodgeLeft", "DodgeRight"]:
+				pairs[plan["pair"]] = true
+	check(pairs.size() == 49 and CaptureIntro.choreography("P", "B") != CaptureIntro.choreography("P", "R") and CaptureIntro.choreography("P", "B") != CaptureIntro.choreography("W", "B"), "all 49 ordered piece matchups have valid distinct entrance choreography")
 	var game: Variant = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	var visual: Variant = game.bv
@@ -75,8 +83,16 @@ func run_checks() -> void:
 	game._sync_rule_visual()
 	game._refresh_board_status()
 	game._start_duel(Vector2i(0, 1), Vector2i(1, 2))
-	check(game.mode == "capture", "capture begins with board cinematic")
-	await create_timer(0.7).timeout
+	check(game.mode == "capture" and is_instance_valid(game.capture_intro) and not game.board[Vector2i(0, 1)].node.visible and not game.board[Vector2i(1, 2)].node.visible, "capture swaps static board pieces for animated fighters")
+	await create_timer(0.58).timeout
+	check(is_instance_valid(game.capture_intro) and game.capture_intro.phase == "hit" and is_instance_valid(game.capture_intro.attacker_anim) and is_instance_valid(game.capture_intro.defender_anim), "matchup plays strike and defender reaction")
+	await create_timer(0.25).timeout
+	check(game.capture_intro.phase == "return" and game.capture_intro.defender_anim.current_animation == game.capture_intro.plan["counter"], "defender counters and attacker guards before walking")
+	await create_timer(0.35).timeout
+	check(game.capture_intro.phase == "walk" and game.capture_intro.attacker_anim.current_animation == "Walk" and game.capture_intro.defender_anim.current_animation == "Walk" and game.capture_intro.gate.scale.x > 0.0, "both fighters walk toward the arena entrance")
+	await create_timer(0.70).timeout
+	check(game.capture_intro.phase in ["arrival", "done"] and game.capture_intro.attacker_anim.current_animation == "Idle", "fighters settle to Idle before handoff")
+	await create_timer(0.40).timeout
 	check(game.mode == "duel" and not visual.visible, "cinematic hands off to duel")
 	var duel: Node
 	for child in game.get_children():

@@ -54,7 +54,7 @@ func run_checks() -> void:
 	set_position(game, "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
 	check(Vector2i(3, 5) in game._moves(Vector2i(4, 4)) and game._is_capture(Vector2i(4, 4), Vector2i(3, 5)), "en passant is legal capture for combat")
 	game._start_duel(Vector2i(4, 4), Vector2i(3, 5))
-	await create_timer(0.7).timeout
+	await create_timer(2.25).timeout
 	check(game.mode == "duel" and game.pending.defender == Vector2i(3, 4), "en passant starts duel against bypassed pawn")
 	var duel: Node
 	for child in game.get_children():
@@ -66,7 +66,7 @@ func run_checks() -> void:
 	check(game.board.has(Vector2i(3, 5)) and not game.board.has(Vector2i(3, 4)) and not game.white_turn, "attacker duel win completes en passant capture")
 	set_position(game, "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
 	game._start_duel(Vector2i(4, 4), Vector2i(3, 5))
-	await create_timer(0.7).timeout
+	await create_timer(2.25).timeout
 	duel = null
 	for child in game.get_children():
 		if child.has_signal("finished") and not child.is_queued_for_deletion():

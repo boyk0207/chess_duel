@@ -7,6 +7,7 @@ const Duel = preload("res://scripts/duel.gd")
 const Duel3D = preload("res://scripts/duel_3d.gd")
 const BoardScript = preload("res://scripts/board_visual.gd")
 const BoardScene = preload("res://scenes/board_visual.tscn")
+const CaptureIntroScene = preload("res://scenes/capture_intro.tscn")
 const ChessRules = preload("res://scripts/chess_rules.gd")
 
 const CAM_OFFSET := Vector3(0, 7.5, 6.4)
@@ -28,6 +29,8 @@ var rebind_pending := ""
 var rebind_status: Label
 var piece_animating := false
 var capture_progress := 0.0
+var capture_intro: Node3D
+var capture_hidden: Array[Node3D] = []
 var camera_angle := 0.0
 var camera_target_angle := 0.0
 var ai_wait := false
@@ -658,6 +661,7 @@ func _on_lan_error(message: String) -> void:
 
 func _abort_lan_match(message: String) -> void:
 	if not online_match: return
+	_clear_capture_intro()
 	if is_instance_valid(active_lan_duel): active_lan_duel.queue_free()
 	if is_instance_valid(lan_promotion_picker): lan_promotion_picker.queue_free()
 	lan_promotion_picker = null
@@ -718,7 +722,7 @@ func _process(delta: float) -> void:
 		cam.look_at(look_pos, Vector3.UP)
 	elif mode == "capture":
 		focus = focus.lerp(focus_target, clampf(delta * 5.0, 0.0, 1.0))
-		var zoom := lerpf(1.0, 0.68, capture_progress)
+		var zoom := lerpf(1.0, 0.46, capture_progress)
 		cam.position = c + focus + Vector3(sin(camera_angle) * CAM_OFFSET.z, CAM_OFFSET.y, cos(camera_angle) * CAM_OFFSET.z) * sq * zoom
 		look_pos = c + focus + Vector3(0, 0.25 * sq, 0)
 		cam.look_at(look_pos, Vector3.UP)
@@ -730,6 +734,7 @@ func _focus_on(sqr: Vector2i) -> void:
 
 # ---------------------------------------------------------------- board
 func _new_game() -> void:
+	_clear_capture_intro()
 	chess_rules.reset()
 	for k in board.keys():
 		board[k].node.queue_free()
@@ -973,6 +978,15 @@ func _ai_turn() -> void:
 		_animate_move(from, to)
 
 # ---------------------------------------------------------------- duel
+func _clear_capture_intro() -> void:
+	if is_instance_valid(capture_intro):
+		capture_intro.hide()
+		capture_intro.queue_free()
+	capture_intro = null
+	for node in capture_hidden:
+		if is_instance_valid(node): node.show()
+	capture_hidden.clear()
+
 func _start_duel(from: Vector2i, to: Vector2i) -> void:
 	if not _is_capture(from, to): return
 	var move: Dictionary = chess_rules.find_move(from, to)
@@ -983,10 +997,20 @@ func _start_duel(from: Vector2i, to: Vector2i) -> void:
 	bv.show_selected(from, bool(board[from].w))
 	bv.show_capture(to)
 	_focus_on(to)
+	var attacker_piece: Dictionary = board[from]
+	var defender_piece: Dictionary = board[defender_pos]
+	var cinematic: Node3D = CaptureIntroScene.instantiate()
+	bv.pieces_root().add_child(cinematic)
+	capture_intro = cinematic
+	capture_hidden = [attacker_piece.node, defender_piece.node]
+	for node in capture_hidden: node.hide()
+	var toward_camera := Vector3(sin(camera_angle), 0.0, cos(camera_angle))
+	cinematic.call("configure", str(attacker_piece.t), bool(attacker_piece.w), str(defender_piece.t), bool(defender_piece.w), bv.square_pos(from), bv.square_pos(defender_pos), bv.piece_scale, toward_camera, Data.STAGES[stage_idx]["frame"])
 	Sound.play_flat("board_capture")
 	var transition := create_tween()
-	transition.tween_property(self, "capture_progress", 1.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	transition.tween_property(self, "capture_progress", 1.0, 2.10).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await transition.finished
+	_clear_capture_intro()
 	if not is_inside_tree() or mode != "capture": return
 	mode = "duel"
 	capture_progress = 0.0
