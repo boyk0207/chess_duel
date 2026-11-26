@@ -97,6 +97,33 @@ var lan_remote_pressed: Dictionary = {}
 var lan_remote_age := 1.0
 var lan_send_clock := 0.0
 var lan_projectile_meshes: Array[Node3D] = []
+var lan_fx_sequence := 0
+var lan_fx_seen := 0
+var lan_fx_recent: Array[Array] = []
+
+func _lan_fx(kind: String, values: Array) -> void:
+	if lan_role != 1: return
+	lan_fx_sequence += 1
+	lan_fx_recent.append([lan_fx_sequence, clock, kind] + values)
+	if lan_fx_recent.size() > 8: lan_fx_recent.pop_front()
+
+func _lan_fx_snapshot() -> Array:
+	while not lan_fx_recent.is_empty() and clock - float(lan_fx_recent[0][1]) > 0.8:
+		lan_fx_recent.pop_front()
+	return lan_fx_recent.duplicate(true)
+
+func _lan_apply_fx(events: Array) -> void:
+	for event in events:
+		if not event is Array or event.size() < 4: continue
+		var sequence := int(event[0])
+		if sequence <= lan_fx_seen: continue
+		lan_fx_seen = sequence
+		if clock - float(event[1]) > 0.8: continue
+		match str(event[2]):
+			"bomb":
+				if event.size() == 6: _show_explosion(float(event[3]), float(event[4]), str(event[5]))
+			"smite":
+				if event.size() == 5: _show_smite(float(event[3]), str(event[4]))
 
 func lan_receive_input(input: Dictionary) -> void:
 	if lan_role != 1: return
@@ -129,6 +156,7 @@ func lan_apply_state(state: Dictionary) -> void:
 			_spark(fi, Color.WHITE)
 			Sound.play_spatial("body_hit", fi.node.global_position, self, fi.kind)
 	clock = float(state.get("t", clock))
+	_lan_apply_fx(state.get("fx", []))
 	var was_over := over
 	over = bool(state.get("over", false))
 	if over and not was_over:
@@ -163,7 +191,7 @@ func _lan_snapshot() -> Dictionary:
 	var shots := []
 	for projectile in projs:
 		shots.append([projectile.kind, projectile.s, projectile.y])
-	return {"f": pair, "p": shots, "t": clock, "over": over}
+	return {"f": pair, "p": shots, "fx": _lan_fx_snapshot(), "t": clock, "over": over}
 
 func _lan_publish(delta: float) -> void:
 	if lan_role != 1: return
@@ -720,7 +748,15 @@ func _update_projs(delta: float) -> void:
 		p.node.queue_free()
 
 func _explode(p: Proj, foe: Fighter) -> void:
-	Sound.play_spatial("special_impact", p.node.global_position, self, p.src.kind)
+	_lan_fx("bomb", [p.s, p.y, p.src.kind])
+	_show_explosion(p.s, p.y, p.src.kind)
+	var d := Vector2(foe.s - p.s, foe.y + float(Data.FIGHT_H[foe.kind]) * 0.5 - maxf(p.y, 0.3)).length()
+	if d <= BOMB_RADIUS:
+		var k := 1.0 if d <= BOMB_RADIUS * 0.5 else 0.5
+		_damage(foe, p.dmg * k, signf(foe.s - p.s) * 0.8, true, 0.4, p.src.kind, true, true)
+
+func _show_explosion(s: float, y: float, kind: String) -> void:
+	Sound.play_spatial("special_impact", Vector3(0.0, maxf(y, 0.3), -s), self, kind)
 	var ex := MeshInstance3D.new()
 	var sm := SphereMesh.new()
 	sm.radius = 1.0
@@ -728,7 +764,7 @@ func _explode(p: Proj, foe: Fighter) -> void:
 	ex.mesh = sm
 	ex.material_override = _glow(Color(1.0, 0.55, 0.1), 3.0)
 	add_child(ex)
-	_place(ex, p.s, maxf(p.y, 0.3))
+	_place(ex, s, maxf(y, 0.3))
 	ex.scale = Vector3.ONE * 0.3
 	var tw := create_tween()
 	tw.tween_property(ex, "scale", Vector3.ONE * BOMB_RADIUS, 0.25)
@@ -743,19 +779,20 @@ func _explode(p: Proj, foe: Fighter) -> void:
 	boundary_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	boundary.material_override = boundary_mat
 	add_child(boundary)
-	_place(boundary, p.s, maxf(p.y, 0.3))
+	_place(boundary, s, maxf(y, 0.3))
 	boundary.position.x = 0.15
 	var ring_tw := create_tween().set_parallel(true)
 	ring_tw.tween_property(boundary, "scale", Vector3.ONE * 1.08, 0.32)
 	ring_tw.tween_property(boundary_mat, "albedo_color:a", 0.0, 0.32)
 	ring_tw.chain().tween_callback(boundary.queue_free)
-	var d := Vector2(foe.s - p.s, foe.y + float(Data.FIGHT_H[foe.kind]) * 0.5 - maxf(p.y, 0.3)).length()
-	if d <= BOMB_RADIUS:
-		var k := 1.0 if d <= BOMB_RADIUS * 0.5 else 0.5
-		_damage(foe, p.dmg * k, signf(foe.s - p.s) * 0.8, true, 0.4, p.src.kind, true, true)
-
 func _smite_strike(p: Proj, foe: Fighter) -> void:
-	Sound.play_spatial("special_impact", p.node.global_position, self, p.src.kind)
+	_lan_fx("smite", [p.s, p.src.kind])
+	_show_smite(p.s, p.src.kind)
+	if absf(foe.s - p.s) < 1.0 + float(Data.RAD[foe.kind]) * 0.5:
+		_damage(foe, p.dmg, 0.0, true, 0.5, p.src.kind, true, true)
+
+func _show_smite(s: float, kind: String) -> void:
+	Sound.play_spatial("special_impact", Vector3(0.0, 4.5, -s), self, kind)
 	var beam := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
 	cm.top_radius = 0.6
@@ -764,13 +801,10 @@ func _smite_strike(p: Proj, foe: Fighter) -> void:
 	beam.mesh = cm
 	beam.material_override = _glow(Color(1.0, 0.95, 0.4), 4.0)
 	add_child(beam)
-	_place(beam, p.s, 4.5)
+	_place(beam, s, 4.5)
 	var tw := create_tween()
 	tw.tween_property(beam, "scale", Vector3(0.1, 1.0, 0.1), 0.25)
 	tw.tween_callback(beam.queue_free)
-	if absf(foe.s - p.s) < 1.0 + float(Data.RAD[foe.kind]) * 0.5:
-		_damage(foe, p.dmg, 0.0, true, 0.5, p.src.kind, true, true)
-
 func _ko(loser: Fighter) -> void:
 	if over:
 		return

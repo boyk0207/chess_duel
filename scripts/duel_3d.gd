@@ -88,6 +88,10 @@ var lan_dodge_dir := Vector3.ZERO
 var lan_dodge_clip := "DodgeForward"
 var lan_guard_age := 1.0
 var lan_projectile_meshes: Array[Node3D] = []
+var lan_fx_sequence := 0
+var lan_fx_seen := 0
+var lan_fx_recent: Array[Array] = []
+var lan_bomb_trail_clock := 0.0
 var lan_target_positions: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 var lan_target_velocities: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 var lan_has_snapshot := false
@@ -260,6 +264,53 @@ func _lan_vec(values: Variant, fallback: Vector3 = Vector3.ZERO) -> Vector3:
 func _lan_array(value: Vector3) -> Array:
 	return [value.x, value.y, value.z]
 
+func _lan_fx(kind: String, values: Array) -> void:
+	if lan_role != 1: return
+	lan_fx_sequence += 1
+	lan_fx_recent.append([lan_fx_sequence, elapsed, kind] + values)
+	if lan_fx_recent.size() > 24: lan_fx_recent.pop_front()
+
+func _lan_fx_snapshot() -> Array:
+	while not lan_fx_recent.is_empty() and elapsed - float(lan_fx_recent[0][1]) > 0.8:
+		lan_fx_recent.pop_front()
+	return lan_fx_recent.duplicate(true)
+
+func fx_popup(point: Vector3, value: float, color: Color, word: String = "") -> void:
+	polish.popup(point, value, color, word)
+	_lan_fx("popup", [_lan_array(point), value, color.to_html(), word])
+
+func fx_ring(point: Vector3, color: Color, size: float, duration: float = 0.28, upright: bool = false) -> void:
+	polish.shock_ring(point, color, size, duration, upright)
+	_lan_fx("ring", [_lan_array(point), color.to_html(), size, duration, upright])
+
+func fx_sound(cue: String, point: Vector3, kind: String = "") -> void:
+	get_node("/root/Sound").play_spatial(cue, point, self, kind)
+	_lan_fx("sound", [_lan_array(point), cue, kind])
+
+func _lan_apply_fx(events: Array, host_time: float) -> void:
+	for event in events:
+		if not event is Array or event.size() < 4: continue
+		var sequence := int(event[0])
+		if sequence <= lan_fx_seen: continue
+		lan_fx_seen = sequence
+		if host_time - float(event[1]) > 0.8: continue
+		var point := _lan_vec(event[3])
+		match str(event[2]):
+			"burst":
+				if event.size() == 7: burst(point, Color(str(event[4])), int(event[5]), float(event[6]))
+			"ring":
+				if event.size() == 8: fx_ring(point, Color(str(event[4])), float(event[5]), float(event[6]), bool(event[7]))
+			"popup":
+				if event.size() == 7: fx_popup(point, float(event[4]), Color(str(event[5])), str(event[6]))
+			"orb":
+				if event.size() == 6: effect(point, Color(str(event[4])), float(event[5]))
+			"spear": spear_impact(point)
+			"lightning":
+				_lightning_visual(point)
+				collapse_shake = maxf(collapse_shake, 0.35)
+			"sound":
+				if event.size() == 6: fx_sound(str(event[4]), point, str(event[5]))
+
 func lan_receive_input(input: Dictionary) -> void:
 	if lan_role != 1: return
 	lan_remote_input = input
@@ -273,7 +324,7 @@ func _lan_snapshot() -> Dictionary:
 		fighters_state.append([_lan_array(bodies[i].position), _lan_array(bodies[i].velocity), models[i].rotation.y, hp[i], guarding[i], cooldown[i], special[i], pose_time[i], pose_length[i], pose_power[i], flashes[i], combo_active[i], ground_known[i], perfect_pose[i], dodge_time if i == 0 else lan_dodge_time])
 	var shots := []
 	for projectile in projectiles:
-		if is_instance_valid(projectile["mesh"]): shots.append([str(projectile["kind"]), _lan_array(projectile["mesh"].position), _lan_array(projectile["mesh"].rotation)])
+		if is_instance_valid(projectile["mesh"]): shots.append([str(projectile["kind"]), _lan_array(projectile["mesh"].position), _lan_array(projectile["mesh"].rotation), _lan_array(projectile.get("velocity", Vector3.ZERO))])
 	var islands := []
 	for event in collapses:
 		var part: Variant = event.get("part")
@@ -287,7 +338,7 @@ func _lan_snapshot() -> Dictionary:
 	for cover in covers: covers_alive.append(is_instance_valid(cover["node"]) and not cover["node"].is_queued_for_deletion())
 	var shard_popups := []
 	for i in range(2): shard_popups.append([shard_popup_seq[i], shard_icon_kind[i], shard_icon_time[i]])
-	return {"f": fighters_state, "p": shots, "e": elapsed, "over": over, "winner": end_winner, "islands": islands, "bridges": broken, "covers": covers_alive, "ferry": ferry_x, "crystal": [crystal.visible, _lan_array(crystal.position), crystal_kind], "shards": shard_popups, "lightning": [is_instance_valid(lightning_warning), _lan_array(lightning_warning.position) if is_instance_valid(lightning_warning) else []], "storm": storm_amount, "boost": boost, "speed": speed_boost, "push": push_boost}
+	return {"f": fighters_state, "p": shots, "fx": _lan_fx_snapshot(), "e": elapsed, "over": over, "winner": end_winner, "islands": islands, "bridges": broken, "covers": covers_alive, "ferry": ferry_x, "crystal": [crystal.visible, _lan_array(crystal.position), crystal_kind], "shards": shard_popups, "heal": heal_ready_at, "lightning": [is_instance_valid(lightning_warning), _lan_array(lightning_warning.position) if is_instance_valid(lightning_warning) else []], "storm": storm_amount, "boost": boost, "speed": speed_boost, "push": push_boost}
 
 func _lan_publish(dt: float) -> void:
 	if lan_role != 1: return
@@ -318,12 +369,13 @@ func lan_apply_state(state: Dictionary) -> void:
 		if pose_time[i] > old_pose + 0.08:
 			get_node("/root/Sound").play_spatial("special" if pose_power[i] else ("heavy_swing" if kinds[i] in ["R", "K", "W"] else "swing"), bodies[i].global_position + Vector3.UP, self, kinds[i])
 		if hp[i] < old_hp:
-			burst(bodies[i].position + Vector3.UP, FX_COLORS[kinds[i]], 7, 0.65)
-			get_node("/root/Sound").play_spatial("body_hit", bodies[i].global_position + Vector3.UP, self, kinds[i])
+			flashes[i] = maxf(flashes[i], 0.12)
+			if i == 1: shake = maxf(shake, 0.15)
 	lan_has_snapshot = true
 	lan_snapshot_age = 0.0
 	lan_state_samples += 1
 	elapsed = float(state.get("e", elapsed))
+	_lan_apply_fx(state.get("fx", []), elapsed)
 	var was_over := over
 	over = bool(state.get("over", false))
 	end_winner = int(state.get("winner", -1))
@@ -333,17 +385,25 @@ func lan_apply_state(state: Dictionary) -> void:
 		cross.hide()
 		get_node("/root/Sound").play_flat("victory" if end_winner == 1 else "defeat")
 	var island_state: Array = state.get("islands", [])
+	danger_text = ""
 	for i in mini(island_state.size(), collapses.size()):
 		var item: Array = island_state[i]
 		var event: Dictionary = collapses[i]
 		if item.size() != 3: continue
+		var old_state := int(event["state"])
 		event["state"] = int(item[0])
 		var part: Variant = event.get("part")
 		if is_instance_valid(part):
+			if old_state == 0 and int(event["state"]) == 1: mark_cracks(part, int(event["index"]))
 			if item[1] is Array and item[1].size() == 3:
 				part.position = _lan_vec(item[1])
 				part.rotation = _lan_vec(item[2], part.rotation)
 			else: part.queue_free() # Remove stale collision as well as the visual.
+		if int(event["state"]) == 1:
+			var remaining := maxf(0.0, float(event["at"]) - elapsed)
+			if danger_text.is_empty(): danger_text = "%.1fs" % remaining
+			if is_instance_valid(part) and bodies[1].position.distance_to(part.global_position) < 15.0:
+				collapse_shake = maxf(collapse_shake, 0.20 * clampf((5.0 - remaining) / 5.0, 0.0, 1.0))
 	var bridge_state: Array = state.get("bridges", [])
 	for i in mini(bridge_state.size(), bridge_info.size()):
 		var item: Array = bridge_state[i]
@@ -361,6 +421,7 @@ func lan_apply_state(state: Dictionary) -> void:
 	for i in mini(cover_state.size(), covers.size()):
 		if not bool(cover_state[i]) and is_instance_valid(covers[i]["node"]): covers[i]["node"].queue_free()
 	if is_instance_valid(ferry): ferry.position.x = float(state.get("ferry", ferry.position.x))
+	heal_ready_at = float(state.get("heal", heal_ready_at))
 	var crystal_state: Array = state.get("crystal", [])
 	if crystal_state.size() == 3:
 		crystal.visible = bool(crystal_state[0])
@@ -410,10 +471,14 @@ func lan_apply_state(state: Dictionary) -> void:
 		lan_projectile_meshes.append(null)
 	for i in lan_projectile_meshes.size():
 		if i >= shots.size():
-			if is_instance_valid(lan_projectile_meshes[i]): lan_projectile_meshes[i].hide()
+			if is_instance_valid(lan_projectile_meshes[i]):
+				if str(lan_projectile_meshes[i].get_meta("lan_kind", "")) == "fire":
+					lan_projectile_meshes[i].queue_free()
+					lan_projectile_meshes[i] = null
+				else: lan_projectile_meshes[i].hide()
 			continue
 		var shot: Array = shots[i]
-		if shot.size() != 3: continue
+		if shot.size() != 4: continue
 		var kind := str(shot[0])
 		var mesh: Node3D = lan_projectile_meshes[i] if is_instance_valid(lan_projectile_meshes[i]) else null
 		if not is_instance_valid(mesh) or str(mesh.get_meta("lan_kind", "")) != kind:
@@ -422,14 +487,22 @@ func lan_apply_state(state: Dictionary) -> void:
 			elif kind == "bomb":
 				mesh = MagmaBomb.instantiate() as Node3D
 				mesh.scale = Vector3.ONE * 0.65
+			elif kind == "fire":
+				var fire := FireballFX.instantiate() as PyroluxFireball3D
+				fire.autoplay = false
+				fire.hit_mode = PyroluxFireball3D.HitMode.NONE
+				fire.impact_scorch = false
+				mesh = fire
 			elif kind == "quake": mesh = make_wave(Color.GOLD)
 			else: mesh = orb(Color.ORANGE_RED, 0.22)
 			mesh.set_meta("lan_kind", kind)
 			add_child(mesh)
 			lan_projectile_meshes[i] = mesh
+			if kind == "fire": (mesh as PyroluxFireball3D).launch_direction(_lan_vec(shot[1]), _lan_vec(shot[3]), _lan_vec(shot[3]).length())
 		mesh.show()
-		mesh.position = _lan_vec(shot[1], mesh.position)
-		mesh.rotation = _lan_vec(shot[2], mesh.rotation)
+		if kind != "fire":
+			mesh.position = _lan_vec(shot[1], mesh.position)
+			mesh.rotation = _lan_vec(shot[2], mesh.rotation)
 
 func _lan_guest_motion(dt: float) -> void:
 	if not lan_has_snapshot or over: return
@@ -476,6 +549,9 @@ func _lan_reconcile(dt: float) -> void:
 
 func _lan_guest_tick(dt: float) -> void:
 	get_node("/root/Sound").set_battle_intensity(clampf((1.0 - minf(hp[0] / float(stats[0]["hp"]), hp[1] / float(stats[1]["hp"]))) * 0.75 + elapsed / 120.0, 0.0, 1.0))
+	polish.tick(dt)
+	shake = maxf(0.0, shake - dt)
+	collapse_shake = maxf(0.0, collapse_shake - dt)
 	_lan_guest_motion(dt)
 	lan_stats_clock += dt
 	if lan_stats_clock >= 1.0:
@@ -483,6 +559,12 @@ func _lan_guest_tick(dt: float) -> void:
 		lan_state_samples = 0
 		lan_stats_clock = 0.0
 	update_shard_icons(dt)
+	lan_bomb_trail_clock += dt
+	if lan_bomb_trail_clock >= 0.05:
+		lan_bomb_trail_clock = 0.0
+		for mesh in lan_projectile_meshes:
+			if is_instance_valid(mesh) and mesh.visible and str(mesh.get_meta("lan_kind", "")) == "bomb":
+				burst(mesh.position, Color.ORANGE_RED, 2, 0.25, false)
 	lan_input_clock += dt
 	if lan_input_clock >= 0.025 and not over:
 		lan_input_clock = 0.0
@@ -495,18 +577,30 @@ func _lan_guest_tick(dt: float) -> void:
 	for i in range(2):
 		if over: animate_end(i)
 		else: animate_pose(i, dt, bodies[i].velocity.length() > 0.4)
+		if not over: update_weapon_trail(i)
 		bars[i].value = hp[i]
-		shields[i].visible = guarding[i] or perfect_pose[i] > 0.0
+		shields[i].visible = not over and (guarding[i] or perfect_pose[i] > 0.0)
 		shields[i].scale = Vector3.ONE * (1.0 + perfect_pose[i] * 1.4)
 	for wind in winds:
 		if is_instance_valid(wind["root"]):
 			wind["root"].visible = elapsed < 20.0 + float(wind["index"]) * 4.0
 			if wind["root"].visible: wind["root"].update_visual(dt, storm_amount)
-	if over: update_victory_camera(dt)
+	visuals.update_storm(storm_amount)
+	if is_instance_valid(sun):
+		sun.light_energy = lerpf(1.15, 0.48, storm_amount)
+		sun.light_color = Color("fff0d2").lerp(Color("aab9f0"), storm_amount)
+	if is_instance_valid(lightning_warning):
+		lightning_warning.scale = Vector3(1.0 + sin(elapsed * 24.0) * 0.07, 0.25, 1.0 + sin(elapsed * 24.0) * 0.07)
+	if crystal.visible:
+		crystal.rotation.y += dt * 2.0
+	_update_heal_visual()
+	if over:
+		end_clock += dt
+		update_victory_camera(dt)
 	else: update_camera()
 	status.text = ("VICTORY" if end_winner == 1 else "DEFEAT") if over else "LAN PvP | %s Attack | %s Block | %s Special: %s" % [Controls.display_name("arena_attack"), Controls.display_name("arena_block"), Controls.display_name("arena_special"), "READY" if special[1] <= 0.0 else "%.1fs" % special[1]]
 	var phase := "SUDDEN DEATH" if elapsed >= 45.0 else ("SKY STORM" if elapsed >= 35.0 else ("COLLAPSE" if elapsed >= 15.0 else "FIGHT"))
-	arena_label.text = "%ds | %s | Power %.1fs | Speed %.1fs | Push %.1fs\nFPS %d | States %d/s | Last %d ms" % [int(elapsed), phase, boost[1], speed_boost[1], push_boost[1], Engine.get_frames_per_second(), lan_state_rate, roundi(lan_snapshot_age * 1000.0)]
+	arena_label.text = "%ds | %s | Power %.1fs | Speed %.1fs | Push %.1fs\nFPS %d | States %d/s | Last %d ms%s" % [int(elapsed), phase, boost[1], speed_boost[1], push_boost[1], Engine.get_frames_per_second(), lan_state_rate, roundi(lan_snapshot_age * 1000.0), " | COLLAPSE " + danger_text if not danger_text.is_empty() else ""]
 func block(size: Vector3, pos: Vector3, color: Color, solid: bool = true) -> StaticBody3D:
 	var root := StaticBody3D.new()
 	add_child(root)
@@ -656,7 +750,7 @@ func _physics_process(dt: float) -> void:
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Controls.is_pressed("arena_dodge") and dodge_cd <= 0.0 and move.length() > 0.1 and not guarding[0] and bodies[0].is_on_floor():
 		dodge_cd = 2.0
 		dodge_time = 0.20
-		get_node("/root/Sound").play_spatial("dodge", bodies[0].global_position, self)
+		fx_sound("dodge", bodies[0].global_position)
 		dodge_dir = move.normalized()
 		var front := dodge_dir.dot(forward)
 		var side := dodge_dir.dot(right)
@@ -671,7 +765,7 @@ func _physics_process(dt: float) -> void:
 		lan_dodge_cd = 2.0
 		lan_dodge_time = 0.20
 		lan_dodge_dir = remote_move
-		get_node("/root/Sound").play_spatial("dodge", bodies[1].global_position, self)
+		fx_sound("dodge", bodies[1].global_position)
 		var front := lan_dodge_dir.dot(remote_forward)
 		var side := lan_dodge_dir.dot(remote_right)
 		lan_dodge_clip = ("DodgeRight" if side > 0.0 else "DodgeLeft") if absf(side) > absf(front) else ("DodgeForward" if front > 0.0 else "DodgeBack")
@@ -834,25 +928,25 @@ func damage(i: int, amount: float, power: bool = false, point: Vector3 = Vector3
 	if (target == 0 and dodge_time > 0.0) or (target == 1 and lan_role == 1 and lan_dodge_time > 0.0): return
 	var contact := point if point.is_finite() else bodies[target].position + Vector3.UP * 0.95
 	if target == 0 and guarding[0] and guard_age < 0.18:
-		get_node("/root/Sound").play_spatial("perfect_block", contact, self)
+		fx_sound("perfect_block", contact)
 		notify("PERFECT BLOCK")
 		guard_age = 0.18 # Consume the parry window once per guard press.
 		perfect_pose[0] = 0.26
 		counter_time[0] = 2.0
 		burst(contact, FX_COLORS[kinds[0]], 14, 1.0)
-		polish.shock_ring(contact, Color.WHITE, 2.4, 0.32, true)
-		polish.shock_ring(contact, FX_COLORS[kinds[0]], 3.2, 0.42, true)
-		polish.popup(bodies[0].position + Vector3.UP * (float(Data.FIGHT_H[kinds[0]]) + 0.35), 0.0, Color.CYAN, "PARRY")
+		fx_ring(contact, Color.WHITE, 2.4, 0.32, true)
+		fx_ring(contact, FX_COLORS[kinds[0]], 3.2, 0.42, true)
+		fx_popup(bodies[0].position + Vector3.UP * (float(Data.FIGHT_H[kinds[0]]) + 0.35), 0.0, Color.CYAN, "PARRY")
 		shake = maxf(shake, 0.12)
 		request_hitstop(0.055)
 		return
 	if target == 1 and lan_role == 1 and guarding[1] and lan_guard_age < 0.18:
-		get_node("/root/Sound").play_spatial("perfect_block", contact, self)
+		fx_sound("perfect_block", contact)
 		lan_guard_age = 0.18
 		perfect_pose[1] = 0.26
 		counter_time[1] = 2.0
 		burst(contact, FX_COLORS[kinds[1]], 14, 1.0)
-		polish.shock_ring(contact, Color.WHITE, 2.4, 0.32, true)
+		fx_ring(contact, Color.WHITE, 2.4, 0.32, true)
 		request_hitstop(0.055)
 		return
 	amount *= 1.6 if elapsed >= 45.0 else (1.3 if elapsed >= 30.0 else (1.15 if elapsed >= 15.0 else 1.0))
@@ -867,11 +961,11 @@ func damage(i: int, amount: float, power: bool = false, point: Vector3 = Vector3
 	var actual := old_hp - hp[target]
 	var audio_cue := "block" if blocked else ("counter" if counter else ("special_impact" if power and kinds[i] != "P" else ("heavy_hit" if power or hp[target] <= 0.0 or combo_active[i] == 3 else "body_hit")))
 	if not (power and impact_played and not blocked and not counter):
-		get_node("/root/Sound").play_spatial(audio_cue, contact, self, kinds[i])
+		fx_sound(audio_cue, contact, kinds[i])
 	if not blocked:
 		if not power:
-			get_node("/root/Sound").play_spatial("attack", contact, self, kinds[i])
-		get_node("/root/Sound").play_spatial("hit", contact, self, kinds[target])
+			fx_sound("attack", contact, kinds[i])
+		fx_sound("hit", contact, kinds[target])
 	flashes[target] = 0.22
 	if not power:
 		combo_connected[i] = true
@@ -889,19 +983,20 @@ func damage(i: int, amount: float, power: bool = false, point: Vector3 = Vector3
 	if target == 0 or lethal: shake = maxf(shake, 0.27 if lethal else 0.15)
 	effect(contact, Color.CYAN if blocked else Color.GOLD, 0.38 if blocked else 0.55)
 	burst(contact, tint, 6 if blocked else (15 if power or lethal else 8), 1.15 if power or lethal else 0.65)
-	polish.shock_ring(contact, tint, 1.8 if power else 1.25, 0.25, true)
+	fx_ring(contact, tint, 1.8 if power else 1.25, 0.25, true)
 	var label_color := Color.CYAN if blocked else (Color.GOLD if counter or lethal else Color.WHITE)
-	polish.popup(bodies[target].position + Vector3.UP * (float(Data.FIGHT_H[kinds[target]]) + 0.25), actual, label_color)
+	fx_popup(bodies[target].position + Vector3.UP * (float(Data.FIGHT_H[kinds[target]]) + 0.25), actual, label_color)
 	if lethal:
 		burst(contact, Color.GOLD, 20, 1.8)
-		polish.shock_ring(contact, Color.GOLD, 3.4, 0.5, true)
-		polish.popup(bodies[target].position + Vector3.UP * (float(Data.FIGHT_H[kinds[target]]) + 0.95), 0.0, Color.GOLD, "K.O.")
+		fx_ring(contact, Color.GOLD, 3.4, 0.5, true)
+		fx_popup(bodies[target].position + Vector3.UP * (float(Data.FIGHT_H[kinds[target]]) + 0.95), 0.0, Color.GOLD, "K.O.")
 	elif counter:
-		polish.popup(contact+Vector3.UP*1.0, 0.0, Color.GOLD, "COUNTER")
+		fx_popup(contact+Vector3.UP*1.0, 0.0, Color.GOLD, "COUNTER")
 	var pause := 0.10 if lethal else (0.07 if power else float(HIT_PAUSE[kinds[i]]))
 	request_hitstop(pause * (0.65 if blocked else 1.0))
 	notify(("COUNTER" if counter else ("BLOCKED" if blocked else "HIT")) + " -%.1f HP" % actual)
 func effect(pos: Vector3, color: Color, size: float) -> void:
+	_lan_fx("orb", [_lan_array(pos), color.to_html(), size])
 	var mesh := orb(color,size)
 	add_child(mesh)
 	mesh.position = pos
@@ -963,7 +1058,7 @@ func resolve_attack(i: int, face: Vector3, power: bool) -> void:
 	var start := bodies[i].position+Vector3.UP
 	var end := bodies[target].position+Vector3.UP
 	if power:
-		get_node("/root/Sound").play_spatial("cast_release", bodies[i].global_position + Vector3.UP, self)
+		fx_sound("cast_release", bodies[i].global_position + Vector3.UP)
 		var kind: String = stats[i]["special"]
 		if i == 0: notify(String(stats[i]["sp_name"]))
 		if kind == "charge":
@@ -984,7 +1079,7 @@ func resolve_attack(i: int, face: Vector3, power: bool) -> void:
 			cast_query.exclude = [bodies[i].get_rid()]
 			var cast_hit := get_world_3d().direct_space_state.intersect_ray(cast_query)
 			var point: Vector3 = cast_hit.get("position",start+face*cast_range)
-			get_node("/root/Sound").play_spatial("special_impact", point, self, kinds[i])
+			fx_sound("special_impact", point, kinds[i])
 			effect(point,Color.GOLD,1.2)
 			burst(point, Color(0.8, 0.35, 1.0), 20, 1.5)
 			strike_area(point, 1.8, float(stats[i]["sp_dmg"]))
@@ -1041,7 +1136,7 @@ func update_projectiles(dt: float) -> void:
 			mesh.rotate_x(dt * 5.0)
 			mesh.rotate_z(dt * 3.0)
 			if int(p["life"] * 20.0) != int((p["life"] - dt) * 20.0):
-				burst(mesh.position, Color.ORANGE_RED, 2, 0.25)
+				burst(mesh.position, Color.ORANGE_RED, 2, 0.25, false)
 		p["velocity"] = velocity
 		var next := mesh.position+velocity*dt
 		var query := PhysicsRayQueryParameters3D.create(mesh.position,next)
@@ -1052,7 +1147,7 @@ func update_projectiles(dt: float) -> void:
 			var pos: Vector3 = hit.get("position",next)
 			var impact_played: bool = not hit.is_empty() or p["kind"] == "bomb"
 			if impact_played:
-				get_node("/root/Sound").play_spatial("projectile_impact" if p["kind"] == "spear" else "special_impact", pos, self, kinds[i])
+				fx_sound("projectile_impact" if p["kind"] == "spear" else "special_impact", pos, kinds[i])
 			if p["kind"] == "bomb": strike_area(pos, BOMB_RADIUS, float(stats[i]["sp_dmg"]))
 			else: strike_prop(hit.get("collider"), float(stats[i]["sp_dmg"]), true)
 			if hit.get("collider") == bodies[1-i] or (p["kind"] == "bomb" and pos.distance_to(bodies[1-i].position+Vector3.UP) <= BOMB_RADIUS and clear_path(i,pos+Vector3.UP*0.1,bodies[1-i].position+Vector3.UP)):
@@ -1060,7 +1155,7 @@ func update_projectiles(dt: float) -> void:
 			if p["kind"] == "spear":
 				spear_impact(pos)
 			elif p["kind"] == "bomb":
-				polish.shock_ring(pos, Color.ORANGE_RED, BOMB_RADIUS / 0.51, 0.38)
+				fx_ring(pos, Color.ORANGE_RED, BOMB_RADIUS / 0.51, 0.38)
 				burst(pos, Color.ORANGE_RED, 28, BOMB_RADIUS)
 				effect(pos, Color.GOLD, 1.2)
 				shake = 0.22
@@ -1122,7 +1217,7 @@ func animate_pose(i: int, dt: float, running: bool, sprinting: bool = false) -> 
 		play_rig(i, lan_dodge_clip if i == 1 else dodge_clip, 0.20)
 		if step_fx[i] <= 0.0:
 			step_fx[i] = 0.09
-			burst(bodies[i].position + Vector3.UP * 0.35, FX_COLORS[kinds[i]], 4, 0.4)
+			burst(bodies[i].position + Vector3.UP * 0.35, FX_COLORS[kinds[i]], 4, 0.4, false)
 	elif perfect_pose[i] > 0.0:
 		play_rig(i, "PerfectBlock", 0.26)
 	elif guarding[i]:
@@ -1195,6 +1290,7 @@ func make_flying_spear() -> MeshInstance3D:
 	return root
 
 func spear_impact(pos: Vector3) -> void:
+	_lan_fx("spear", [_lan_array(pos)])
 	for j in range(8):
 		var spark := orb(Color.GOLD, 0.045)
 		add_child(spark)
@@ -1206,7 +1302,8 @@ func spear_impact(pos: Vector3) -> void:
 		tw.tween_property(spark, "scale", Vector3.ONE * 0.02, 0.22)
 		tw.chain().tween_callback(spark.queue_free)
 
-func burst(pos: Vector3, color: Color, count: int, radius: float) -> void:
+func burst(pos: Vector3, color: Color, count: int, radius: float, replicate: bool = true) -> void:
+	if replicate: _lan_fx("burst", [_lan_array(pos), color.to_html(), count, radius])
 	for j in range(count):
 		var spark := orb(color, 0.045 + float(j % 3) * 0.025)
 		add_child(spark)
@@ -1364,6 +1461,23 @@ func decorate_island_role(island: Node3D, index: int, d: Vector3, rock: Color) -
 			arena_visual(FlowerMesh,island,Vector3(-2.65,0.4,2.65),Vector3.ONE)
 
 func update_heal() -> void:
+	_update_heal_visual()
+	if not is_instance_valid(heal_ring) or elapsed >= 32.0: return
+	var remaining := maxf(0.0,heal_ready_at-elapsed)
+	if remaining > 0.0: return
+	var point := heal_ring.global_position
+	for i in range(2):
+		var delta := bodies[i].global_position-point
+		var max_hp := float(stats[i]["hp"])
+		if Vector2(delta.x,delta.z).length() < 1.3 and absf(delta.y) < 0.8 and hp[i] > 0.0 and hp[i] < max_hp-0.01:
+			hp[i] = minf(max_hp,hp[i]+max_hp*0.10)
+			heal_ready_at = elapsed+8.0
+			burst(point+Vector3.UP*0.3,Color.LIME_GREEN,12,0.9)
+			show_shard_icon(i,2)
+			fx_sound("shard", point)
+			break
+
+func _update_heal_visual() -> void:
 	if not is_instance_valid(heal_ring): return
 	if elapsed >= 32.0:
 		heal_ring.hide()
@@ -1378,18 +1492,6 @@ func update_heal() -> void:
 			var shade := ISLAND_COLORS[3].lerp(Color("274d35"),clampf(remaining/0.35,0.0,1.0))
 			mat.albedo_color = shade
 			mat.emission = shade
-	if remaining > 0.0: return
-	var point := heal_ring.global_position
-	for i in range(2):
-		var delta := bodies[i].global_position-point
-		var max_hp := float(stats[i]["hp"])
-		if Vector2(delta.x,delta.z).length() < 1.3 and absf(delta.y) < 0.8 and hp[i] > 0.0 and hp[i] < max_hp-0.01:
-			hp[i] = minf(max_hp,hp[i]+max_hp*0.10)
-			heal_ready_at = elapsed+8.0
-			burst(point+Vector3.UP*0.3,Color.LIME_GREEN,12,0.9)
-			show_shard_icon(i,2)
-			get_node("/root/Sound").play_spatial("shard", point, self)
-			break
 
 func bridge_deck_height(boundary: int) -> float:
 	# The first and last planks are flat, overlapping the island at Y=0.
@@ -1464,8 +1566,9 @@ func cut_bridge(index: int) -> void:
 	info["cut"] = true
 	var root: Node3D = info["root"]
 	if not is_instance_valid(root): return
-	get_node("/root/Sound").play_spatial("impactPlank_medium_001", root.global_position, self)
-	burst(root.global_position+Vector3.UP*0.5,Color("b78e62"),10,1.0)
+	if lan_role != 2:
+		fx_sound("impactPlank_medium_001", root.global_position)
+		burst(root.global_position+Vector3.UP*0.5,Color("b78e62"),10,1.0)
 	# Each original rope half snaps and rotates down independently.
 	for rope in info["ropes"]:
 		if is_instance_valid(rope): drop_piece(rope,1.05)
@@ -1480,7 +1583,7 @@ func break_planks(index: int, plank_index: int) -> bool:
 	var info := bridge_info[index]
 	if info["broken"] or info["cut"]: return false
 	info["broken"] = true
-	get_node("/root/Sound").play_spatial("impactWood_heavy_003", info["root"].global_position, self)
+	fx_sound("impactWood_heavy_003", info["root"].global_position)
 	var first := clampi(plank_index-2, 1, 10)
 	for plank in info["planks"]:
 		if not is_instance_valid(plank): continue
@@ -1548,7 +1651,7 @@ func update_collapses() -> void:
 			if bodies[0].position.distance_to(part.global_position)<15.0: collapse_shake = maxf(collapse_shake,0.20*strength)
 		elif int(event["state"]) < 2:
 			event["state"] = 2
-			get_node("/root/Sound").play_spatial("impactMining_003", part.global_position, self)
+			fx_sound("impactMining_003", part.global_position)
 			if index >= 0: cut_bridge(index)
 			collapse_shake = maxf(collapse_shake,0.75)
 			burst(part.global_position+Vector3.UP*0.6,Color("9f866d"),14,2.8)
@@ -1707,7 +1810,7 @@ func update_crystals(dt: float) -> void:
 			burst(crystal.global_position,CRYSTAL_COLORS[crystal_kind],10,0.7)
 			crystal.hide()
 			show_shard_icon(collector,crystal_kind)
-			get_node("/root/Sound").play_spatial("shard", crystal.global_position, self)
+			fx_sound("shard", crystal.global_position)
 	else: crystal.hide()
 
 func update_storm(_dt: float) -> void:
@@ -1740,6 +1843,22 @@ func update_storm(_dt: float) -> void:
 		notify("LIGHTNING - LEAVE THE ORANGE RING")
 
 func lightning_strike(point: Vector3) -> void:
+	_lan_fx("lightning", [_lan_array(point)])
+	_lightning_visual(point)
+	burst(point,Color("c8e6ff"),16,1.6)
+	strike_area(point,1.7,18.0)
+	collapse_shake = maxf(collapse_shake,0.35)
+	for i in range(2):
+		var delta := bodies[i].position-point
+		if Vector2(delta.x,delta.z).length()<1.8 and absf(delta.y)<3.5 and not ((i == 0 and dodge_time > 0) or (i == 1 and lan_role == 1 and lan_dodge_time > 0)):
+			var before := hp[i]
+			hp[i] = maxf(0.0,hp[i]-float(stats[i]["hp"])*0.08)
+			fx_popup(bodies[i].position + Vector3.UP * (float(Data.FIGHT_H[kinds[i]])+0.3), before-hp[i], Color("c8e6ff"))
+			flashes[i] = 0.22
+			knockback[i] = Vector3(delta.x,0,delta.z).normalized()*3.0
+			notify("LIGHTNING HIT")
+
+func _lightning_visual(point: Vector3) -> void:
 	get_node("/root/Sound").play_spatial("thunder", point, self)
 	var mat := luminous(Color("d6e9ff"))
 	for i in range(5):
@@ -1750,18 +1869,6 @@ func lightning_strike(point: Vector3) -> void:
 		var tw := create_tween().bind_node(beam)
 		tw.tween_interval(0.16)
 		tw.tween_callback(beam.queue_free)
-	burst(point,Color("c8e6ff"),16,1.6)
-	strike_area(point,1.7,18.0)
-	collapse_shake = maxf(collapse_shake,0.35)
-	for i in range(2):
-		var delta := bodies[i].position-point
-		if Vector2(delta.x,delta.z).length()<1.8 and absf(delta.y)<3.5 and not ((i == 0 and dodge_time > 0) or (i == 1 and lan_role == 1 and lan_dodge_time > 0)):
-			var before := hp[i]
-			hp[i] = maxf(0.0,hp[i]-float(stats[i]["hp"])*0.08)
-			polish.popup(bodies[i].position + Vector3.UP * (float(Data.FIGHT_H[kinds[i]])+0.3), before-hp[i], Color("c8e6ff"))
-			flashes[i] = 0.22
-			knockback[i] = Vector3(delta.x,0,delta.z).normalized()*3.0
-			notify("LIGHTNING HIT")
 
 func outer_index(pos: Vector3) -> int:
 	if maxf(absf(pos.x),absf(pos.z)) <= 8.0: return -1
@@ -1891,9 +1998,9 @@ func footstep(i: int, landing: bool) -> void:
 	if landing: count *= 2
 	var species_color: Color = FX_COLORS[kind]
 	var color := Color("b5a184") if kind in ["P", "N", "R", "K"] else species_color.lerp(Color("c4b6a4"),0.35)
-	burst(pos, color, count, 0.65 if landing else 0.25)
+	burst(pos, color, count, 0.65 if landing else 0.25, false)
 	if landing and kind in ["R","K","W"]:
-		polish.shock_ring(pos, color, 1.7 if kind == "R" else 1.2, 0.34)
+			fx_ring(pos, color, 1.7 if kind == "R" else 1.2, 0.34)
 
 func begin_victory_camera() -> void:
 	victory_start = camera.global_position

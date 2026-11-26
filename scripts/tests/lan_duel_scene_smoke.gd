@@ -42,6 +42,9 @@ func run_checks() -> void:
 	host3d.crystal.position = Vector3(1, 0.8, 2)
 	host3d.crystal_kind = 3
 	host3d.lightning_warning = host3d.ring_at(host3d, Vector3(2, 0.07, 1), 1.8, Color.ORANGE)
+	host3d.heal_ready_at = host3d.elapsed + 5.0
+	var before_cracks: int = guest3d.collapses[0]["part"].get_child_count()
+	host3d.collapses[0]["state"] = 1
 	host3d.collapses[0]["part"].rotation.x = 0.2
 	host3d.bridge_info[0]["broken"] = true
 	host3d.bridge_info[0]["gap_min"] = 1.0
@@ -51,6 +54,8 @@ func run_checks() -> void:
 	check(is_equal_approx(guest3d.ferry.position.x, 3.5) and guest3d.crystal.visible and guest3d.crystal.position.is_equal_approx(host3d.crystal.position), "3D Join receives ferry and crystal state")
 	check(is_instance_valid(guest3d.lightning_warning) and guest3d.lightning_warning.position.is_equal_approx(host3d.lightning_warning.position), "3D Join receives lightning warning")
 	check(is_equal_approx(guest3d.collapses[0]["part"].rotation.x, 0.2) and guest3d.bridge_info[0]["planks"][4].has_meta("dropping"), "3D Join receives island tilt and exact broken plank")
+	guest3d._update_heal_visual()
+	check(guest3d.collapses[0]["part"].get_child_count() > before_cracks and not guest3d.heal_ring.visible and is_equal_approx(guest3d.heal_ready_at, host3d.heal_ready_at), "3D Join renders collapse cracks and heal cooldown")
 	var before_remote: Vector3 = guest3d.bodies[0].position
 	host3d.bodies[0].position += Vector3(1.0, 0.0, 0.0)
 	guest3d.lan_apply_state(host3d._lan_snapshot())
@@ -94,22 +99,41 @@ func run_checks() -> void:
 	host3d.update_crystals(0.016)
 	guest3d.lan_apply_state(host3d._lan_snapshot())
 	check(host3d.speed_boost[0] > 0.0 and guest3d.shard_icons[0].visible and guest3d.shard_icons[0].get_parent() == guest3d.bodies[0] and guest3d.shard_icon_kind[0] == 1, "3D Host and Join show a White-owned Speed Shard above White")
+	var before_fx_nodes: int = guest3d.get_child_count() + guest3d.polish.get_child_count()
+	var before_fx_hp: float = guest3d.hp[1]
+	host3d.fx_ring(Vector3(1, 1, 0), Color.GOLD, 2.0)
+	host3d.fx_popup(Vector3(1, 2, 0), 12.0, Color.WHITE)
+	host3d.effect(Vector3(1, 1, 0), Color.ORANGE, 0.5)
+	host3d.burst(Vector3(1, 1, 0), Color.RED, 4, 0.4)
+	host3d.spear_impact(Vector3(1, 1, 0))
+	host3d._lan_fx("lightning", [[1.0, 0.0, 0.0]])
+	var fx_snapshot: Dictionary = host3d._lan_snapshot()
+	check(JSON.stringify({"type": "duel_state", "state": fx_snapshot}).to_utf8_buffer().size() < 4096, "combat FX snapshot fits LAN packet limit")
+	guest3d.lan_apply_state(fx_snapshot)
+	var after_fx_nodes: int = guest3d.get_child_count() + guest3d.polish.get_child_count()
+	check(after_fx_nodes > before_fx_nodes + 8 and guest3d.lan_fx_seen == host3d.lan_fx_sequence and is_equal_approx(guest3d.hp[1], before_fx_hp), "Join replays combat rings, popup, sparks and lightning without damage")
+	guest3d.lan_apply_state(fx_snapshot)
+	check(guest3d.get_child_count() + guest3d.polish.get_child_count() == after_fx_nodes, "repeated state does not duplicate combat effects")
 	var projectile: Node3D = host3d.orb(Color.ORANGE_RED, 0.22)
 	host3d.add_child(projectile)
 	projectile.position = Vector3(1, 2, 3)
 	host3d.projectiles.append({"mesh": projectile, "kind": "fire", "owner": 0, "velocity": Vector3.ZERO, "life": 1.0})
 	guest3d.lan_apply_state(host3d._lan_snapshot())
-	check(guest3d.lan_projectile_meshes.size() == 1 and guest3d.lan_projectile_meshes[0].visible and guest3d.lan_projectile_meshes[0].position.is_equal_approx(projectile.position), "3D Join renders Host projectile")
+	check(guest3d.lan_projectile_meshes.size() == 1 and guest3d.lan_projectile_meshes[0] is PyroluxFireball3D and guest3d.lan_projectile_meshes[0].visible and guest3d.lan_projectile_meshes[0].head_position().distance_to(projectile.position) < 0.5, "3D Join renders authored Host fireball FX")
 	host3d.projectiles.clear()
 	guest3d.lan_apply_state(host3d._lan_snapshot())
-	check(not guest3d.lan_projectile_meshes[0].visible, "3D Join removes expired projectile")
+	check(not is_instance_valid(guest3d.lan_projectile_meshes[0]) or guest3d.lan_projectile_meshes[0].is_queued_for_deletion(), "3D Join removes expired projectile")
 	host3d.over = true
 	host3d.end_winner = 1
 	host3d.hp[0] = 0.0
 	guest3d.lan_apply_state(host3d._lan_snapshot())
 	check(guest3d.over and not guest3d.cross.visible and guest3d.end_winner == 1, "3D Join sees Black victory state")
+	guest3d._lan_guest_tick(0.25)
+	check(guest3d.end_clock > 0.0 and not guest3d.shields[0].visible and not guest3d.shields[1].visible, "3D Join advances victory camera and hides combat shields")
 	host3d.over = false
 	host3d.hp[0] = float(host3d.stats[0]["hp"])
+	for j in range(24): host3d._lan_fx("ring", [[float(j) * 0.1, 1.0, 0.0], "ffffffff", 2.0, 0.28, true])
+	check(JSON.stringify({"type": "duel_state", "state": host3d._lan_snapshot()}).to_utf8_buffer().size() < 4096, "maximum retained 3D combat FX fits LAN packet limit")
 	guest3d.queue_free()
 	await process_frame
 	host3d.guarding[1] = true
@@ -162,6 +186,16 @@ func run_checks() -> void:
 	host2d.projs.clear()
 	guest2d.lan_apply_state(host2d._lan_snapshot())
 	check(not guest2d.lan_projectile_meshes[0].visible, "2.5D Join removes expired projectile")
+	var before_2d_fx: int = guest2d.get_child_count()
+	var before_2d_hp: float = guest2d.fighters[1].hp
+	host2d._lan_fx("bomb", [1.5, 0.3, "R"])
+	host2d._lan_fx("smite", [-1.0, "B"])
+	var fx2d_snapshot: Dictionary = host2d._lan_snapshot()
+	guest2d.lan_apply_state(fx2d_snapshot)
+	var after_2d_fx: int = guest2d.get_child_count()
+	check(after_2d_fx >= before_2d_fx + 3 and guest2d.lan_fx_seen == host2d.lan_fx_sequence and is_equal_approx(guest2d.fighters[1].hp, before_2d_hp), "2.5D Join replays Bomb explosion and Smite beam without damage")
+	guest2d.lan_apply_state(fx2d_snapshot)
+	check(guest2d.get_child_count() == after_2d_fx, "2.5D repeated state does not duplicate explosion")
 	host2d.over = true
 	host2d.fighters[0].hp = 0.0
 	guest2d.lan_apply_state(host2d._lan_snapshot())

@@ -42,7 +42,7 @@ func run_checks() -> void:
 		if file != null:
 			file.store_string(net.room_code)
 			file.close()
-		check(await wait_for(func(): return net.state.get("players", []).size() == 2), "Join connected")
+		check(await wait_for(func(): return net.state.get("players", []).size() == 2, 360), "Join connected")
 		net.set_ready(true)
 		check(await wait_for(func():
 			var players: Array = net.state.get("players", [])
@@ -85,6 +85,13 @@ func run_checks() -> void:
 		check(await wait_for(func():
 			if stage == 0: game.active_lan_duel._lan_reconcile(0.05)
 			return game.active_lan_duel.bodies[1].position.z > -6.5 if stage == 0 else game.active_lan_duel.fighters[1].s < 2.7, 20), "Join sees Host-simulated fighter movement")
+		if stage == 0:
+			check(await wait_for(func():
+				for child in game.active_lan_duel.polish.get_children():
+					if child is Label3D and child.text == "LAN FX": return true
+				return false, 30), "Join sees Host combat FX popup over socket")
+		else:
+			check(await wait_for(func(): return game.active_lan_duel.lan_fx_seen > 0, 30), "Join receives 2.5D explosion event over socket")
 		if stage == 0: game.active_lan_duel.set_physics_process(true)
 		else: game.active_lan_duel.set_process(true)
 		if stage == 0:
@@ -103,6 +110,8 @@ func run_checks() -> void:
 			check(await wait_for(func(): return game.active_lan_duel.fighters[1].sp_cd > 0.0, 40), "Join 2.5D special cooldown reaches replica")
 	else:
 		check(await wait_for(func(): return game.active_lan_duel.bodies[1].position.z > -6.5 if stage == 0 else game.active_lan_duel.fighters[1].s < 2.7), "Join input moves Host fighter")
+		if stage == 0: game.active_lan_duel.fx_popup(game.active_lan_duel.bodies[1].position + Vector3.UP * 2.0, 0.0, Color.GOLD, "LAN FX")
+		else: game.active_lan_duel._lan_fx("bomb", [1.5, 0.3, "R"])
 		if stage == 0:
 			await create_timer(0.5).timeout # Drain the movement packets before the fixed melee fixture.
 			game.active_lan_duel.lan_remote_input = {}
